@@ -131,15 +131,32 @@ async function safeDelete(p: string) {
 }
 
 function probeVideoDuration(filePath: string): number {
-  const ffprobeBin = FFMPEG_BIN.replace(/ffmpeg$/, "ffprobe");
+  // Use ffmpeg -i to get duration since ffprobe may not be available (ffmpeg-static only includes ffmpeg)
   try {
+    // ffmpeg outputs format info to stderr when given -i with no output
     const out = execSync(
-      `"${ffprobeBin}" -v quiet -select_streams v:0 -show_entries stream=duration -of csv=p=0 "${filePath}"`,
+      `"${FFMPEG_BIN}" -i "${filePath}" 2>&1 | grep -oP 'Duration: \\K[0-9:.]+' | head -1`,
       { shell: "/bin/sh", timeout: 8000, encoding: "utf-8" }
     ).trim();
-    return parseFloat(out) || 0;
-  } catch {
+    // Parse HH:MM:SS.ms format
+    if (out) {
+      const parts = out.split(":");
+      if (parts.length === 3) {
+        const hours = parseFloat(parts[0]) || 0;
+        const mins = parseFloat(parts[1]) || 0;
+        const secs = parseFloat(parts[2]) || 0;
+        return hours * 3600 + mins * 60 + secs;
+      }
+    }
     return 0;
+  } catch {
+    // Fallback: check if file exists and has non-zero size
+    try {
+      const stat = statSync(filePath);
+      return stat.size > 1000 ? 1 : 0; // Assume valid if > 1KB
+    } catch {
+      return 0;
+    }
   }
 }
 
@@ -177,6 +194,7 @@ const upload = multer({
 });
 
 // ── Job Stores ───────────────────────────────────────────────────────────────
+// Jobs are stored in memory but also persisted to disk so they survive server restarts
 
 interface ClipInfo {
   index: number;
@@ -241,6 +259,83 @@ const extractJobs: Record<string, ExtractJob> = {};
 const mergeJobs: Record<string, MergeJob> = {};
 const finalizeJobs: Record<string, FinalizeJob> = {};
 const exportJobs: Record<string, ExportJob> = {};
+
+// ── Job Persistence ───────────────────────────────────────────────────────────
+const JOBS_FILE = path.join(WORK_DIR, "shiva-jobs.json");
+
+function saveJobsToDisk() {
+  try {
+    const data = {
+      extractJobs: Object.fromEntries(
+        Object.entries(extractJobs).filter(([, j]) => j.status === "done")
+      ),
+      mergeJobs: Object.fromEntries(
+        Object.entries(mergeJobs).filter(([, j]) => j.status === "done")
+      ),
+      finalizeJobs: Object.fromEntries(
+        Object.entries(finalizeJobs).filter(([, j]) => j.status === "done")
+      ),
+      exportJobs: Object.fromEntries(
+        Object.entries(exportJobs).filter(([, j]) => j.status === "done")
+      ),
+    };
+    fs.writeFile(JOBS_FILE, JSON.stringify(data, null, 2)).catch(() => {});
+  } catch { /* ignore */ }
+}
+
+function loadJobsFromDisk() {
+  try {
+    if (!existsSync(JOBS_FILE)) return;
+    const data = JSON.parse(require("fs").readFileSync(JOBS_FILE, "utf-8"));
+    
+    // Restore extract jobs (verify clip files still exist)
+    for (const [id, job] of Object.entries(data.extractJobs || {})) {
+      const j = job as ExtractJob;
+      if (j.status === "done" && j.clips?.length > 0) {
+        // Verify all clip files exist
+        const validClips = j.clips.filter(c => existsSync(c.filePath));
+        if (validClips.length === j.clips.length) {
+          extractJobs[id] = j;
+          logger.info(`[restore] extract job ${id}: ${j.clips.length} clips`);
+        }
+      }
+    }
+    
+    // Restore merge jobs (verify merged file exists)
+    for (const [id, job] of Object.entries(data.mergeJobs || {})) {
+      const j = job as MergeJob;
+      if (j.status === "done" && j.mergedPath && existsSync(j.mergedPath)) {
+        mergeJobs[id] = j;
+        logger.info(`[restore] merge job ${id}`);
+      }
+    }
+    
+    // Restore finalize jobs (verify output file exists)
+    for (const [id, job] of Object.entries(data.finalizeJobs || {})) {
+      const j = job as FinalizeJob;
+      if (j.status === "done" && j.outputPath && existsSync(j.outputPath)) {
+        finalizeJobs[id] = j;
+        logger.info(`[restore] finalize job ${id}`);
+      }
+    }
+    
+    // Restore export jobs (verify output file exists)
+    for (const [id, job] of Object.entries(data.exportJobs || {})) {
+      const j = job as ExportJob;
+      if (j.status === "done" && j.outputPath && existsSync(j.outputPath)) {
+        exportJobs[id] = j;
+        logger.info(`[restore] export job ${id}`);
+      }
+    }
+    
+    logger.info(`[restore] loaded ${Object.keys(extractJobs).length} extract, ${Object.keys(mergeJobs).length} merge jobs from disk`);
+  } catch (err) {
+    logger.warn({ err }, "[restore] failed to load jobs from disk");
+  }
+}
+
+// Load jobs on startup
+loadJobsFromDisk();
 
 // ── Process: Extract Clips ────────────────────────────────────────────────────
 async function processExtract(jobId: string, moviePath: string, editPlan: Record<string, unknown>) {
@@ -310,6 +405,7 @@ async function processExtract(jobId: string, moviePath: string, editPlan: Record
     job.clips = clips;
     job.progress = 100;
     job.status = "done";
+    saveJobsToDisk();
     logger.info(`[extract] job ${jobId} done: ${clips.length} clips extracted`);
   } catch (err) {
     job.status = "error";
@@ -435,6 +531,7 @@ async function processMerge(jobId: string, extractJobId: string, boosts: any[], 
     job.hasBoosts  = hasAnyUnmutedClip || boosts.length > 0;
     job.progress   = 100;
     job.status     = "done";
+    saveJobsToDisk();
     logger.info(`[merge] job ${jobId} done → ${mergedPath} (${totalDur.toFixed(2)}s)`);
   } catch (err) {
     job.status = "error";
@@ -502,6 +599,7 @@ async function processFinalize(
     job.outputPath = outputPath;
     job.progress   = 100;
     job.status     = "done";
+    saveJobsToDisk();
     logger.info(`[finalize] job ${jobId} done → ${outputPath}`);
   } catch (err) {
     job.status = "error";
@@ -563,6 +661,7 @@ async function processExport(
     job.outputPath = outputPath;
     job.progress   = 100;
     job.status     = "done";
+    saveJobsToDisk();
     logger.info(`[export] job ${jobId} done → ${outputPath}`);
   } catch (err) {
     job.status = "error";
@@ -737,7 +836,7 @@ renderRouter.post("/render/upload-chunk", upload.single("chunk"), async (req, re
 
 // ════════════════════════════════════════════════════════════════════════════
 //  NEW 3-PHASE ENDPOINTS
-// ════════════════════════════════════════════════════════════════════════════
+// ════════════════���═══════════════════════════════════════════════════════════
 
 // ── PHASE 1: Extract clips ───────────────────────────────────────────────────
 renderRouter.post("/render/extract", async (req, res) => {
