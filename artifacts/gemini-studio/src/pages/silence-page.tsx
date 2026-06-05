@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useLocation } from 'wouter'
 import {
   Loader2, ArrowLeft, Scissors, Download, RotateCcw, RefreshCw,
-  ChevronRight, Volume2, AudioLines,
+  ChevronRight, Volume2, AudioLines, Upload,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,10 @@ const SILENCE_LOCAL_KEY = 'shiva-silence-audio-dataurl'
 
 function loadAudioFromSession(): string | null {
   try { return sessionStorage.getItem(AUDIO_SESSION_KEY) } catch { return null }
+}
+
+function saveAudioToSession(dataUrl: string): void {
+  try { sessionStorage.setItem(AUDIO_SESSION_KEY, dataUrl) } catch { /* quota */ }
 }
 
 function saveSilenceAudio(dataUrl: string): void {
@@ -38,20 +42,47 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 export default function SilencePage() {
   const [, navigate] = useLocation()
-  const [originalUrl] = useState<string | null>(() => loadAudioFromSession())
+  const [originalUrl, setOriginalUrl] = useState<string | null>(() => loadAudioFromSession())
   const [processedUrl, setProcessedUrl] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState('')
 
-  const [thresholdDb, setThresholdDb] = useState('-40')
-  const [minSilenceDuration, setMinSilenceDuration] = useState('0.300')
-  const [padding, setPadding] = useState('0.100')
+  const [thresholdDb, setThresholdDb] = useState('-20')
+  const [minSilenceDuration, setMinSilenceDuration] = useState('0.100')
+  const [padding, setPadding] = useState('0.050')
 
   const [origDuration, setOrigDuration] = useState<number>(0)
   const [procDuration, setProcDuration] = useState<number>(0)
 
   const origRef = useRef<HTMLAudioElement>(null)
   const procRef = useRef<HTMLAudioElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Handle file upload
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (!file.type.startsWith('audio/')) {
+      setError('Please upload a valid audio file (MP3, WAV, etc.)')
+      return
+    }
+    
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      setOriginalUrl(dataUrl)
+      saveAudioToSession(dataUrl)
+      setProcessedUrl(null)
+      setProcDuration(0)
+      setError('')
+      Sounds.voiceGenComplete()
+    }
+    reader.onerror = () => {
+      setError('Failed to read the audio file')
+    }
+    reader.readAsDataURL(file)
+  }, [])
 
   const handleRemoveSilence = async () => {
     if (!originalUrl) { setError('No audio file found. Please go back to Step 3.'); return }
@@ -97,9 +128,9 @@ export default function SilencePage() {
   }
 
   const handleReset = () => {
-    setThresholdDb('-40')
-    setMinSilenceDuration('0.300')
-    setPadding('0.100')
+    setThresholdDb('-20')
+    setMinSilenceDuration('0.100')
+    setPadding('0.050')
   }
 
   const handleDownload = () => {
@@ -145,9 +176,35 @@ export default function SilencePage() {
         {/* No audio warning */}
         {!originalUrl && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-            No audio file found. Please go back to Step 3 and generate a voice first.
+            No audio file found. Please go back to Step 3 and generate a voice first, or upload an audio file below.
           </div>
         )}
+
+        {/* Upload Audio Button */}
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Upload className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold text-foreground">Upload Audio File</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Upload your own audio file (MP3, WAV) to remove silence from it.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full border-dashed border-border hover:border-primary hover:bg-primary/5"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Choose Audio File
+          </Button>
+        </div>
 
         {/* Original audio player */}
         {originalUrl && (
@@ -187,7 +244,7 @@ export default function SilencePage() {
                   placeholder="-40"
                   className="bg-input border-border text-sm font-mono w-32"
                 />
-                <span className="text-xs text-muted-foreground">dB &mdash; e.g. -30, -40, -50</span>
+                <span className="text-xs text-muted-foreground">dB &mdash; e.g. -20, -25, -30</span>
               </div>
             </div>
 

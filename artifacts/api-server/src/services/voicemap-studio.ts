@@ -378,13 +378,13 @@ class VoicemapStudioService {
             console.log(`[continue-chat] Toggle ${i}: "${(text || '').trim().slice(0, 60)}"`);
             if ((text || '').toLowerCase().includes('grounding') || (text || '').toLowerCase().includes('google search')) {
               const toggleEl = await toggle.elementHandle();
-              const isOn = toggleEl ? await page.evaluate((el: Element) =>
+              const isOn = toggleEl ? await toggleEl.evaluate((el: any) =>
                 el.classList.contains('mat-mdc-slide-toggle-checked') ||
                 el.classList.contains('mat-checked') ||
                 el.getAttribute('ng-reflect-checked') === 'true' ||
                 el.getAttribute('aria-checked') === 'true' ||
                 el.querySelector('[aria-checked="true"]') !== null
-              , toggleEl).catch(() => false) : false;
+              ).catch(() => false) : false;
               if (isOn) {
                 await toggle.locator('button').click({ timeout: 3000 });
                 groundingRemoved = true;

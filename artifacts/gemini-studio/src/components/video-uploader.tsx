@@ -406,7 +406,7 @@ export function VideoUploader() {
   }
 
   const loadFromHistory = (item: HistoryItem) => {
-    setSessionId(item.id)
+    setSessionId(item.id as any)
     setProjectId(item.projectId)
     setMessages(item.messages)
     setHistoryOpen(false)

@@ -533,7 +533,8 @@ export default function VoicemapPage() {
   }
 
   const extractJson = useCallback((content: string) => {
-    Sounds.approve?.() || Sounds.copy()
+    Sounds.approve?.() 
+    Sounds.copy()
     try { localStorage.setItem(VOICEMAP_RAW_KEY, content) } catch {}
     navigate('/jsonmap')
   }, [navigate])
