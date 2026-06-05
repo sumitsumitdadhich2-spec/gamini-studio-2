@@ -38,9 +38,7 @@ function detectFfmpeg(): string {
   ];
   for (const cmd of cmds) {
     try {
-      const r = execSync(cmd, { shell: "/bin/sh" as any, timeout: 5000, stdio: ["pipe", "pipe", "pipe"] as any })
-        .toString()
-        .trim();
+      const r = execSync(cmd, { shell: "/bin/sh", timeout: 5000, encoding: "utf-8" }).trim();
       if (r) return r.split("\n")[0].trim();
     } catch { /* try next */ }
   }
@@ -104,8 +102,8 @@ function probeVideoDuration(filePath: string): number {
   try {
     const out = execSync(
       `"${ffprobeBin}" -v quiet -select_streams v:0 -show_entries stream=duration -of csv=p=0 "${filePath}"`,
-      { shell: "/bin/sh" as any, timeout: 8000, stdio: ["pipe", "pipe", "pipe"] as any }
-    ).toString().trim();
+      { shell: "/bin/sh", timeout: 8000, encoding: "utf-8" }
+    ).trim();
     return parseFloat(out) || 0;
   } catch {
     return 0;
@@ -903,7 +901,7 @@ renderRouter.delete("/render/final-job/:jobId", async (req, res) => {
   res.json({ success: true });
 });
 
-// ── Export endpoints (no voiceover) ──────────────────────────────────────────
+// ── Export endpoints (no voiceover) ──���───────────────────────────────────────
 renderRouter.post("/render/export", async (req, res) => {
   try {
     const { mergeJobId, resolution, framerate, bitrate } = req.body as Record<string, string>;

@@ -20,12 +20,10 @@ function detectFfmpeg(): string {
   for (const cmd of shellCandidates) {
     try {
       const result = execSync(cmd, {
-        shell: "/bin/sh" as any,
+        shell: "/bin/sh",
         timeout: 5000,
-        stdio: ["pipe", "pipe", "pipe"] as any,
-      })
-        .toString()
-        .trim();
+        encoding: "utf-8",
+      }).trim();
       if (result) return result.split("\n")[0].trim();
     } catch {
       /* try next */
