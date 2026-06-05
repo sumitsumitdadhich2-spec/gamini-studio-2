@@ -193,7 +193,7 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 * 1024 },
 });
 
-// ── Job Stores ─────────────────────────────�����─────────────────────────────────
+// ── Job Stores ─────────────────────────────�������─────────────────────────────────
 // Jobs are stored in memory but also persisted to disk so they survive server restarts
 
 interface ClipInfo {
@@ -384,8 +384,8 @@ async function processExtract(jobId: string, moviePath: string, editPlan: Record
         "-i",   moviePath,
         "-ss",  offset.toFixed(6),     // fine-tune: decode from keyframe to exact start frame
         "-t",   dur.toFixed(6),        // exact duration
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-threads", "0", "-movflags", "+faststart",
-        "-c:a", "aac", "-b:a", "256k", "-y", out,
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-threads", "0", "-movflags", "+faststart",
+        "-c:a", "aac", "-b:a", "192k", "-y", out,
       ]);
 
       const actualDur = probeVideoDuration(out);
@@ -415,7 +415,7 @@ async function processExtract(jobId: string, moviePath: string, editPlan: Record
   }
 }
 
-// ── Process: Merge Clips ──────────────────────────────────────────────────────
+// ── Process: Merge Clips ─────���────────────────────────────────────────────────
 async function processMerge(jobId: string, extractJobId: string, boosts: any[], editPlanClips: any[] = []) {
   const job   = mergeJobs[jobId];
   const exJob = extractJobs[extractJobId];
@@ -489,7 +489,7 @@ async function processMerge(jobId: string, extractJobId: string, boosts: any[], 
       // Every clip is explicitly muted and no audio_boosts → strip audio
       await runFF([
         "-i", joinedPath,
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12",
         "-an", "-threads", "0",
         "-movflags", "+faststart",
         "-t", totalDur.toFixed(3),
@@ -499,8 +499,8 @@ async function processMerge(jobId: string, extractJobId: string, boosts: any[], 
       // No modifications — pass audio through at full level (re-encode for faststart)
       await runFF([
         "-i", joinedPath,
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-        "-c:a", "aac", "-b:a", "256k", "-threads", "0",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12",
+        "-c:a", "aac", "-b:a", "192k", "-threads", "0",
         "-movflags", "+faststart",
         "-t", totalDur.toFixed(3),
         "-y", mergedPath,
@@ -516,8 +516,8 @@ async function processMerge(jobId: string, extractJobId: string, boosts: any[], 
         "-i", joinedPath,
         "-filter_complex", `[0:a]volume='${volExpr}':eval=frame[out_a]`,
         "-map", "0:v", "-map", "[out_a]",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-        "-c:a", "aac", "-b:a", "256k", "-threads", "0",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12",
+        "-c:a", "aac", "-b:a", "192k", "-threads", "0",
         "-movflags", "+faststart",
         "-t", totalDur.toFixed(3),
         "-y", mergedPath,
@@ -559,7 +559,7 @@ async function processFinalize(
     const outputPath = path.join(WORK_DIR, `shiva-final-${jobId}.mp4`);
 
     // Build quality args — slow preset + CRF 15 for high-quality final output
-    const qArgs: string[] = ["-c:v", "libx264", "-preset", "slower", "-crf", "15", "-threads", "0"];
+    const qArgs: string[] = ["-c:v", "libx264", "-preset", "slow", "-crf", "15", "-threads", "0"];
     if (quality.resolution && quality.resolution !== "0") {
       const [W, H] = quality.resolution.split("x");
       qArgs.push("-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}`);
@@ -576,7 +576,7 @@ async function processFinalize(
         "-i", voicePath,
         "-map", "0:v", "-map", "1:a",
         ...qArgs,
-        "-c:a", "aac", "-b:a", "192k",
+        "-c:a", "aac", "-b:a", "128k",
         "-movflags", "+faststart",
         "-t", tDur,
         "-y", outputPath,
@@ -589,7 +589,7 @@ async function processFinalize(
         "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=longest:normalize=0[out_a]",
         "-map", "0:v", "-map", "[out_a]",
         ...qArgs,
-        "-c:a", "aac", "-b:a", "192k",
+        "-c:a", "aac", "-b:a", "128k",
         "-movflags", "+faststart",
         "-t", tDur,
         "-y", outputPath,
@@ -626,7 +626,7 @@ async function processExport(
     job.progress = 10;
     const outputPath = path.join(WORK_DIR, `shiva-export-${jobId}.mp4`);
 
-    const qArgs: string[] = ["-c:v", "libx264", "-preset", "slower", "-crf", "15", "-threads", "0"];
+    const qArgs: string[] = ["-c:v", "libx264", "-preset", "slow", "-crf", "15", "-threads", "0"];
     if (quality.resolution && quality.resolution !== "0") {
       const [W, H] = quality.resolution.split("x");
       qArgs.push("-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}`);
@@ -641,7 +641,7 @@ async function processExport(
       await runFF([
         "-i", mJob.mergedPath,
         ...qArgs,
-        "-c:a", "aac", "-b:a", "192k",
+        "-c:a", "aac", "-b:a", "128k",
         "-movflags", "+faststart",
         "-t", mJob.totalDuration.toFixed(3),
         "-y", outputPath,
@@ -713,8 +713,8 @@ async function processRender(
         "-ss", toFFmpegTime(seekStart), "-i", moviePath,
         "-vf", `trim=start=${startSecs.toFixed(6)}:duration=${duration.toFixed(6)},setpts=PTS-STARTPTS`,
         "-af", `atrim=start=${startSecs.toFixed(6)}:duration=${duration.toFixed(6)},asetpts=PTS-STARTPTS`,
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-threads", "0", "-movflags", "+faststart",
-        "-c:a", "aac", "-b:a", "256k", "-y", clipOut,
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18", "-threads", "0", "-movflags", "+faststart",
+        "-c:a", "aac", "-b:a", "128k", "-y", clipOut,
       ]);
       const actualDur = probeVideoDuration(clipOut);
       if (actualDur >= 0.05) clipFiles.push(clipOut);
@@ -727,7 +727,7 @@ async function processRender(
     job.progress = 90;
     const boosts    = (editPlan.audio_boosts as any[]) || [];
     const outputPath = path.join(os.tmpdir(), `shiva-output-${jobId}.mp4`);
-    const qualityVideoArgs: string[] = ["-c:v", "libx264", "-preset", "slower", "-crf", "15"];
+    const qualityVideoArgs: string[] = ["-c:v", "libx264", "-preset", "fast"];
     if (quality.resolution && quality.resolution !== "0") {
       const [W, H] = quality.resolution.split("x");
       qualityVideoArgs.push("-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}`);
@@ -737,7 +737,7 @@ async function processRender(
     const tDur = totalVideoDuration.toFixed(3);
     if (boosts.length === 0) {
       await runFF(["-i", joinedPath, "-i", voicePath, ...qualityVideoArgs,
-        "-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "192k", "-t", tDur, "-y", outputPath]);
+        "-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "128k", "-t", tDur, "-y", outputPath]);
     } else {
       const conditions = boosts.map((b: any) => {
         const s = msssmmToSeconds(b.start).toFixed(3);
@@ -749,7 +749,7 @@ async function processRender(
       await runFF(["-i", joinedPath, "-i", voicePath,
         "-filter_complex", `[0:a]volume='${volExpr}':eval=frame[mov_a];[1:a]volume=1[voice_a];[mov_a][voice_a]amix=inputs=2:duration=longest[out_a]`,
         "-map", "0:v", "-map", "[out_a]", ...qualityVideoArgs,
-        "-c:a", "aac", "-b:a", "192k", "-t", tDur, "-y", outputPath]);
+        "-c:a", "aac", "-b:a", "128k", "-t", tDur, "-y", outputPath]);
     }
     job.outputPath = outputPath;
     job.progress   = 100;
