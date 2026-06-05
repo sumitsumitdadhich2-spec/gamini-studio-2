@@ -1,1 +1,1 @@
-/home/runner/workspace/artifacts/api-server/cookies/default-project.json
+/vercel/share/v0-project/artifacts/api-server/cookies/test-project.json
