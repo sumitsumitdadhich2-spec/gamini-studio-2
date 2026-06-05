@@ -10,17 +10,20 @@ import ffmpegStatic from "ffmpeg-static";
 function detectFfmpeg(): string {
   // First try ffmpeg-static (bundled binary for serverless)
   if (ffmpegStatic) {
-    return ffmpegStatic;
+    logger.info(`[ffmpeg] Found ffmpeg-static: ${ffmpegStatic}`);
+    // Verify the binary actually exists and is executable
+    try {
+      execSync(`test -x "${ffmpegStatic}"`, { shell: "/bin/sh", timeout: 2000 });
+      return ffmpegStatic;
+    } catch {
+      logger.warn(`[ffmpeg] ffmpeg-static path exists but not executable: ${ffmpegStatic}`);
+    }
   }
   
   const shellCandidates = [
     "which ffmpeg",
-    "ls /nix/store/*-ffmpeg*/bin/ffmpeg 2>/dev/null | head -1",
-    "ls /nix/store/*-replit-runtime-path/bin/ffmpeg 2>/dev/null | head -1",
-    "ls /nix/var/nix/profiles/default/bin/ffmpeg 2>/dev/null",
-    "ls /run/current-system/sw/bin/ffmpeg 2>/dev/null",
-    "ls /usr/bin/ffmpeg 2>/dev/null",
-    "ls /usr/local/bin/ffmpeg 2>/dev/null",
+    "command -v ffmpeg",
+    "type -P ffmpeg",
   ];
 
   for (const cmd of shellCandidates) {
@@ -30,11 +33,16 @@ function detectFfmpeg(): string {
         timeout: 5000,
         encoding: "utf-8",
       }).trim();
-      if (result) return result.split("\n")[0].trim();
+      if (result) {
+        logger.info(`[ffmpeg] Found system ffmpeg: ${result}`);
+        return result.split("\n")[0].trim();
+      }
     } catch {
       /* try next */
     }
   }
+  
+  logger.warn(`[ffmpeg] No FFmpeg binary found - silence removal will not work`);
   return "";
 }
 

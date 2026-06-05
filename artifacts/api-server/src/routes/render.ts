@@ -32,22 +32,33 @@ const WORK_DIR = path.join(process.cwd(), "uploads", "tmp");
 function detectFfmpeg(): string {
   // First try ffmpeg-static (bundled binary for serverless)
   if (ffmpegStatic) {
-    return ffmpegStatic;
+    logger.info(`[ffmpeg] Found ffmpeg-static: ${ffmpegStatic}`);
+    // Verify the binary actually exists and is executable
+    try {
+      execSync(`test -x "${ffmpegStatic}"`, { shell: "/bin/sh", timeout: 2000 });
+      return ffmpegStatic;
+    } catch {
+      logger.warn(`[ffmpeg] ffmpeg-static path exists but not executable: ${ffmpegStatic}`);
+    }
   }
   
   const cmds = [
     "which ffmpeg",
-    "ls /nix/store/*-ffmpeg*/bin/ffmpeg 2>/dev/null | head -1",
-    "ls /nix/store/*-replit-runtime-path/bin/ffmpeg 2>/dev/null | head -1",
-    "ls /nix/var/nix/profiles/default/bin/ffmpeg 2>/dev/null",
-    "ls /run/current-system/sw/bin/ffmpeg 2>/dev/null",
+    "command -v ffmpeg",
+    "type -P ffmpeg",
   ];
+  
   for (const cmd of cmds) {
     try {
       const r = execSync(cmd, { shell: "/bin/sh", timeout: 5000, encoding: "utf-8" }).trim();
-      if (r) return r.split("\n")[0].trim();
+      if (r) {
+        logger.info(`[ffmpeg] Found system ffmpeg: ${r}`);
+        return r.split("\n")[0].trim();
+      }
     } catch { /* try next */ }
   }
+  
+  logger.warn(`[ffmpeg] No FFmpeg binary found - video rendering will not work`);
   return "";
 }
 
