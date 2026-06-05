@@ -1,0 +1,218 @@
+In the existing SHIVA app, do these changes carefully.
+Do not break Step 1 at all.
+
+═══════════════════════════════════════
+PART 1 — SEPARATE STEP 6 INTO ITS OWN SERVICE
+═══════════════════════════════════════
+
+STEP 1 — Create new file:
+artifacts/api-server/src/services/voicemap-studio.ts
+
+Copy the entire contents of gemini-studio.ts into this new file.
+Change the class name from GeminiStudioService to VoicemapStudioService.
+Change the singleton export name from geminiStudioService to voicemapStudioService.
+
+STEP 2 — Create new route file:
+artifacts/api-server/src/routes/voicemap.ts
+
+Copy the entire contents of routes/gemini.ts into this new file.
+Change all imports to use VoicemapStudioService and voicemapStudioService.
+Change all endpoint URLs from /api/gemini to /api/voicemap.
+
+STEP 3 — Register new route:
+In artifacts/api-server/src/routes/index.ts
+Add: app.use('/api/voicemap', voicemapRouter)
+
+STEP 4 — Update voicemap-page.tsx:
+Change all fetch('/api/gemini', ...) calls to fetch('/api/voicemap', ...)
+Do not touch video-uploader.tsx or any Step 1 related files.
+
+═══════════════════════════════════════
+PART 2 — STEP 6 MUST USE STEP 1 COOKIES
+═══════════════════════════════════════
+
+Step 1 saves cookies to a file when initSession is called.
+Step 6 must reuse those exact same cookies.
+
+In voicemap-studio.ts:
+
+In initSession method:
+- Accept cookiesPath parameter as normal
+- But FIRST check if a Step 1 cookies file exists at the 
+  path stored in a shared location
+- The shared location is a file: uploads/shiva-step1-cookies-path.txt
+  This file contains the path to the cookies file that Step 1 used
+
+In routes/gemini.ts (Step 1 route — init-session action):
+- After initSession succeeds, save the cookiesPath to:
+  uploads/shiva-step1-cookies-path.txt
+- Write the cookiesPath string to this file using fs.writeFileSync
+
+In routes/voicemap.ts (Step 6 route — init-session action):
+- Before calling voicemapStudioService.initSession():
+- Read uploads/shiva-step1-cookies-path.txt to get Step 1 cookiesPath
+- If file exists and cookiesPath is valid, use that cookiesPath
+- If file does not exist, use whatever cookiesPath was provided
+- This way Step 6 always opens same browser session as Step 1
+
+═══════════════════════════════════════
+PART 3 — CLIPBOARD-BASED RESPONSE EXTRACTION FOR STEP 6 ONLY
+═══════════════════════════════════════
+
+Only modify voicemap-studio.ts — do NOT touch gemini-studio.ts.
+
+In voicemap-studio.ts initSession method:
+After browser context is created, add:
+await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+
+In voicemap-studio.ts, replace the entire waitForResponse method 
+with this new clipboard-based approach:
+
+private async waitForResponse(page: Page, message: string, chatTurnsBefore: number): Promise<ParsedResponse> {
+
+  // STEP 1 — Wait fixed 5 seconds for Gemini to start responding
+  console.log('[voicemap] Waiting 5s for Gemini to start...')
+  await sleep(5000)
+
+  // STEP 2 — Wait for stop/generating button to disappear (max 3 minutes)
+  console.log('[voicemap] Waiting for generation to complete...')
+  const maxWait = 3 * 60 * 1000
+  const pollInterval = 2000
+  const startTime = Date.now()
+
+  while (Date.now() - startTime < maxWait) {
+    const isGenerating = await page.evaluate(() => {
+      return !!(
+        document.querySelector('[aria-label="Stop generating"]') ||
+        document.querySelector('[aria-label*="Stop"]') ||
+        document.querySelector('.stop-button') ||
+        document.querySelector('button[aria-label="Stop"]')
+      )
+    }).catch(() => false)
+
+    if (!isGenerating) {
+      console.log('[voicemap] Generation complete — stop button gone')
+      break
+    }
+    console.log('[voicemap] Still generating — waiting 2s...')
+    await sleep(pollInterval)
+  }
+
+  // Extra buffer after generation completes
+  await sleep(1500)
+
+  // STEP 3 — Find the 3-dot more-options button on the last model turn
+  console.log('[voicemap] Looking for 3-dot menu on last model turn...')
+
+  const threeDotSelectors = [
+    'ms-chat-turn[actor="model"]:last-of-type button[aria-label="More options"]',
+    'ms-chat-turn[actor="model"]:last-of-type button[aria-label="More"]',
+    'ms-chat-turn[actor="model"]:last-of-type [aria-label*="option" i]',
+    'ms-chat-turn[actor="model"]:last-of-type mat-icon-button',
+    'ms-chat-turn[actor="model"]:last-of-type button.more-options',
+    'ms-chat-turn[data-turn-actor="model"]:last-of-type button[aria-label="More options"]',
+    '[data-actor="model"]:last-of-type button[aria-label="More options"]',
+  ]
+
+  // Scroll last model turn into view first
+  await page.evaluate(() => {
+    const turns = document.querySelectorAll(
+      'ms-chat-turn[actor="model"], ms-chat-turn[data-turn-actor="model"], [data-actor="model"]'
+    )
+    if (turns.length > 0) {
+      turns[turns.length - 1].scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+  }).catch(() => {})
+
+  await sleep(1000)
+
+  // Hover over last model turn to reveal the 3-dot button
+  await page.evaluate(() => {
+    const turns = document.querySelectorAll(
+      'ms-chat-turn[actor="model"], ms-chat-turn[data-turn-actor="model"], [data-actor="model"]'
+    )
+    if (turns.length > 0) {
+      const lastTurn = turns[turns.length - 1] as HTMLElement
+      lastTurn.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+      lastTurn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
+    }
+  }).catch(() => {})
+
+  await sleep(800)
+
+  // Try each selector to find and click the 3-dot button
+  let threeDotClicked = false
+  for (const selector of threeDotSelectors) {
+    try {
+      const btn = await page.$(selector)
+      if (btn) {
+        await btn.scrollIntoViewIfNeeded()
+        await btn.click()
+        console.log(`[voicemap] 3-dot clicked with selector: ${selector}`)
+        threeDotClicked = true
+        break
+      }
+    } catch { /* try next */ }
+  }
+
+  if (!threeDotClicked) {
+    // Fallback — try clicking any visible more-options button
+    try {
+      await page.click('button[aria-label="More options"]', { timeout: 5000 })
+      threeDotClicked = true
+      console.log('[voicemap] 3-dot clicked via fallback selector')
+    } catch {
+      throw new Error('Could not find 3-dot menu button on last model turn')
+    }
+  }
+
+  await sleep(600)
+
+  // STEP 4 — Click Copy in the dropdown menu
+  console.log('[voicemap] Clicking Copy in dropdown menu...')
+  const copySelectors = [
+    'button[aria-label="Copy"]',
+    '[role="menuitem"][aria-label="Copy"]',
+    '[role="menuitem"]:has-text("Copy")',
+    'mat-menu-item:has-text("Copy")',
+    '.mat-menu-item:has-text("Copy")',
+    '[role="menuitem"][aria-label*="copy" i]',
+    'button:has-text("Copy")',
+  ]
+
+  let copyClicked = false
+  for (const selector of copySelectors) {
+    try {
+      const btn = await page.$(selector)
+      if (btn) {
+        await btn.click()
+        console.log(`[voicemap] Copy clicked with selector: ${selector}`)
+        copyClicked = true
+        break
+      }
+    } catch { /* try next */ }
+  }
+
+  if (!copyClicked) {
+    throw new Error('Could not find Copy option in dropdown menu')
+  }
+
+  await sleep(800)
+
+  // STEP 5 — Read clipboard
+  console.log('[voicemap] Reading clipboard...')
+  const clipboardText = await page.evaluate(async () => {
+    try {
+      return await navigator.clipboard.readText()
+    } catch (e) {
+      return ''
+    }
+  })
+
+  if (!clipboardText || clipboardText.trim().length === 0) {
+    throw new Error('Clipboard was empty after copy — response may not have been copied correctly')
+  }
+
+  console.log(`[voicemap] Got clipboard response — length: ${clipboardText.length}`)
+  return { text: clipboardText, debug: null }
+}

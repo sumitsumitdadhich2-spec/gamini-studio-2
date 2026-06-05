@@ -1,0 +1,469 @@
+{
+  "summary": {
+    "voiceover_duration": "01.08.00",
+    "total_clip_duration": "01.08.00",
+    "total_clips": 29,
+    "match_status": "PERFECT",
+    "warning": null
+  },
+  "clips": [
+    {
+      "clip_number": 1,
+      "movie_start": "16.44.00",
+      "movie_end": "16.46.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.00.00",
+      "voiceover_end": "00.02.50",
+      "scene_description": "Kara yelling, 'I don't want to be an engineer.'",
+      "why_selected": "Directly matches the opening phrase of the voiceover.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 2,
+      "movie_start": "16.46.50",
+      "movie_end": "16.49.00",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.02.50",
+      "voiceover_end": "00.05.00",
+      "scene_description": "The truck collides with the SUV.",
+      "why_selected": "Matches the crash event in the voiceover narrative.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 40,
+        "reason": "crash sound effect boost"
+      }
+    },
+    {
+      "clip_number": 3,
+      "movie_start": "17.13.00",
+      "movie_end": "17.15.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.05.00",
+      "voiceover_end": "00.07.50",
+      "scene_description": "Wide shot of the massive steel beams on top of the crushed car.",
+      "why_selected": "Matches the voiceover describing the massive steel beam slicing through.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 4,
+      "movie_start": "17.19.00",
+      "movie_end": "17.21.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.07.50",
+      "voiceover_end": "00.10.00",
+      "scene_description": "Trapped interior of the SUV showing Kara pinned in her seat.",
+      "why_selected": "Matches the visual of Kara being pinned to her seat.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 5,
+      "movie_start": "17.15.00",
+      "movie_end": "17.17.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.10.00",
+      "voiceover_end": "00.12.50",
+      "scene_description": "Captain Owen Strand arrives at the accident scene.",
+      "why_selected": "Corresponds to Strand arriving at the scene of the nightmare.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 6,
+      "movie_start": "17.24.00",
+      "movie_end": "17.26.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.12.50",
+      "voiceover_end": "00.15.00",
+      "scene_description": "Kara gasps, struggling to breathe inside the car.",
+      "why_selected": "Matches the description of her struggle to breathe.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 7,
+      "movie_start": "17.34.00",
+      "movie_end": "17.36.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.15.00",
+      "voiceover_end": "00.17.50",
+      "scene_description": "TK looks worried as he assesses the lung compression.",
+      "why_selected": "Reinforces the gravity of her physical distress.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 8,
+      "movie_start": "18.16.00",
+      "movie_end": "18.18.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.17.50",
+      "voiceover_end": "00.20.00",
+      "scene_description": "Kara crying in panic, her face covered in blood.",
+      "why_selected": "Directly matches 'I can't breathe, she sobbed, her face covered in blood.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 9,
+      "movie_start": "18.21.00",
+      "movie_end": "18.23.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.20.00",
+      "voiceover_end": "00.22.50",
+      "scene_description": "Paramedic checking on Kara inside the vehicle.",
+      "why_selected": "Matches the ongoing medical struggle in the wreckage.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 10,
+      "movie_start": "18.03.50",
+      "movie_end": "18.06.00",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.22.50",
+      "voiceover_end": "00.25.00",
+      "scene_description": "Mateo sliding a wood cribbing block under the wheel.",
+      "why_selected": "Matches 'Mateo scrambled to secure the vehicle with cribbing.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 11,
+      "movie_start": "18.06.00",
+      "movie_end": "18.08.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.25.00",
+      "voiceover_end": "00.27.50",
+      "scene_description": "Mateo securing the wheel block in place.",
+      "why_selected": "Reinforces the work done to secure the vehicle.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 12,
+      "movie_start": "18.24.00",
+      "movie_end": "18.26.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.27.50",
+      "voiceover_end": "00.30.00",
+      "scene_description": "Chavez securing the webbing over the beams on the truck flatbed.",
+      "why_selected": "Matches 'while Chavez fought to stabilize the shifting load.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 13,
+      "movie_start": "18.36.00",
+      "movie_end": "18.38.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.30.00",
+      "voiceover_end": "00.32.50",
+      "scene_description": "Paramedic Vega noticing Kara's breathing is dangerously slow.",
+      "why_selected": "Matches 'Just as Kara's breathing began to fail...'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 14,
+      "movie_start": "18.40.00",
+      "movie_end": "18.42.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.32.50",
+      "voiceover_end": "00.35.00",
+      "scene_description": "Marjan running with rescue airbags.",
+      "why_selected": "Matches 'Marjan charged in with the rescue airbags.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 15,
+      "movie_start": "18.42.50",
+      "movie_end": "18.45.00",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.35.00",
+      "voiceover_end": "00.37.50",
+      "scene_description": "Marjan placing the deflated airbag in position.",
+      "why_selected": "Matches 'Airbags coming in, Move, she shouted.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 16,
+      "movie_start": "18.45.50",
+      "movie_end": "18.48.00",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.37.50",
+      "voiceover_end": "00.40.00",
+      "scene_description": "Owen giving the signal to start inflating the bags.",
+      "why_selected": "Matches the team making their final play.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 17,
+      "movie_start": "18.50.00",
+      "movie_end": "18.52.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.40.00",
+      "voiceover_end": "00.42.50",
+      "scene_description": "The dial on the airbag controller moving as pressure rises.",
+      "why_selected": "Directly matches 'With a hiss of high-pressure air...'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 30,
+        "reason": "airbag controller hiss"
+      }
+    },
+    {
+      "clip_number": 18,
+      "movie_start": "18.52.00",
+      "movie_end": "18.54.50",
+      "clip_duration": "00.02.50",
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      },
+      "voiceover_start": "00.42.50",
+      "voiceover_end": "00.45.00",
+      "scene_description": "The heavy metal beam slowly lifting off the vehicle frame.",
+      "why_selected": "Matches '...the beam lifted just enough.'",
+      "speed": 1.0
+    },
+    {
+      "clip_number": 19,
+      "movie_start": "18.56.00",
+      "movie_end": "18.58.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.45.00",
+      "voiceover_end": "00.47.50",
+      "scene_description": "Owen and TK gently lifting Kara out of the vehicle.",
+      "why_selected": "Matches 'They pulled Kara from the wreckage...'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 20,
+      "movie_start": "19.03.00",
+      "movie_end": "19.05.50",
+      "clip_duration": "00.02.50",
+      "voiceover_start": "00.47.50",
+      "voiceover_end": "00.50.00",
+      "scene_description": "Kara crying on the stretcher as she moves toward the ambulance.",
+      "why_selected": "Matches 'but as she was rushed to the ambulance...'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 21,
+      "movie_start": "19.05.50",
+      "movie_end": "19.07.50",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.50.00",
+      "voiceover_end": "00.52.00",
+      "scene_description": "Kara yelling 'How's my dad?'",
+      "why_selected": "Matches '...she screamed for her dad.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 22,
+      "movie_start": "19.12.00",
+      "movie_end": "19.14.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.52.00",
+      "voiceover_end": "00.54.00",
+      "scene_description": "Owen walking back toward the driver's side of the SUV.",
+      "why_selected": "Matches 'Owen turned back to the driver's seat...'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 23,
+      "movie_start": "19.55.00",
+      "movie_end": "19.57.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.54.00",
+      "voiceover_end": "00.56.00",
+      "scene_description": "Close up of Owen looking in shock.",
+      "why_selected": "Matches '...and his blood ran cold.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 24,
+      "movie_start": "20.31.00",
+      "movie_end": "20.33.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.56.00",
+      "voiceover_end": "00.58.00",
+      "scene_description": "Beam impaled in the driver's side.",
+      "why_selected": "Matches 'The beam that missed Kara had anchored itself directly into her father's chest.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 25,
+      "movie_start": "20.40.00",
+      "movie_end": "20.42.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.58.00",
+      "voiceover_end": "01.00.00",
+      "scene_description": "Close up of the father pinned under steering wheel.",
+      "why_selected": "Visually reinforces the fatal position of the father.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 26,
+      "movie_start": "20.47.00",
+      "movie_end": "20.49.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "01.00.00",
+      "voiceover_end": "01.02.00",
+      "scene_description": "Paramedic Vega checking his vitals.",
+      "why_selected": "Matches 'He wasn't going to make it.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 27,
+      "movie_start": "21.22.00",
+      "movie_end": "21.24.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "01.02.00",
+      "voiceover_end": "01.04.00",
+      "scene_description": "Father struggling to speak to Owen Strand.",
+      "why_selected": "Matches 'With his final, agonizing breath...'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 28,
+      "movie_start": "21.28.00",
+      "movie_end": "21.30.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "01.04.00",
+      "voiceover_end": "01.06.00",
+      "scene_description": "Father whispering his final proud message for his daughter.",
+      "why_selected": "Directly matches 'Tell her, whatever she decides to do, I will always be so proud of her.'",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 29,
+      "movie_start": "22.35.00",
+      "movie_end": "22.37.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "01.06.00",
+      "voiceover_end": "01.08.00",
+      "scene_description": "Owen hugs Kara tightly as she cries.",
+      "why_selected": "Matches the heavy emotional tragedy of the father's sacrifice.",
+      "speed": 1.0,
+      "movie_audio": {
+        "level_percent": 20,
+        "reason": "ambient sirens"
+      }
+    }
+  ],
+  "audio_boosts": [
+    {
+      "boost_number": 1,
+      "start": "00.02.50",
+      "end": "00.05.00",
+      "level_percent": 40,
+      "sound_description": "SUV collision with the truck beams, adding deep impactful low-frequency punch."
+    },
+    {
+      "boost_number": 2,
+      "start": "00.40.00",
+      "end": "00.42.50",
+      "level_percent": 30,
+      "sound_description": "Hiss of airbag controller, heightening realism of rescue tools."
+    },
+    {
+      "boost_number": 3,
+      "start": "01.06.00",
+      "end": "01.08.00",
+      "level_percent": 20,
+      "sound_description": "Distant sirens and emergency ambience, enhancing the tragedy of the ending."
+    }
+  ]
+}

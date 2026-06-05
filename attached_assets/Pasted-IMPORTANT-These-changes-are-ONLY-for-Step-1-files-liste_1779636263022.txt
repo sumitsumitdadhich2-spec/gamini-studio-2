@@ -1,0 +1,219 @@
+IMPORTANT: These changes are ONLY for Step 1 files listed below.
+Do NOT touch voicemap-studio.ts, voicemap.ts route, or voicemap-page.tsx.
+
+FILES TO CHANGE FOR STEP 1 ONLY:
+- artifacts/api-server/src/services/gemini-studio.ts
+- artifacts/api-server/src/routes/gemini.ts  
+- artifacts/gemini-studio/src/components/video-uploader.tsx
+
+---
+
+CHANGE 1 — gemini-studio.ts — Save cookies path after initSession:
+
+After initSession completes successfully, save the cookiesPath 
+to a shared file so Step 6 can reuse it.
+
+Add this at the END of initSession method, just before the closing brace:
+try {
+  const { writeFileSync, mkdirSync, existsSync } = require('fs')
+  const sharedDir = path.join(process.cwd(), 'uploads')
+  if (!existsSync(sharedDir)) mkdirSync(sharedDir, { recursive: true })
+  writeFileSync(path.join(sharedDir, 'shiva-step1-cookies-path.txt'), cookiesPath)
+  console.log('[step1] Saved cookies path for Step 6 reuse:', cookiesPath)
+} catch (e) {
+  console.warn('[step1] Could not save cookies path:', e)
+}
+
+---
+
+CHANGE 2 — gemini-studio.ts — Fix waitForResponse to use clipboard copy:
+
+Replace the entire private async waitForResponse method with this:
+
+private async waitForResponse(page: Page, userMessage: string, chatTurnsBefore: number = 0): Promise<ParsedResponse> {
+
+  console.log('[wait] Waiting for Gemini to finish generating...')
+
+  // Wait for stop button to disappear (generation complete)
+  const maxWait = 4 * 60 * 1000 // 4 minutes
+  const pollInterval = 2000
+  const startTime = Date.now()
+
+  // First wait at least 4 seconds for generation to start
+  await new Promise(r => setTimeout(r, 4000))
+
+  while (Date.now() - startTime < maxWait) {
+    const isGenerating = await page.evaluate(() => {
+      return !!(
+        document.querySelector('[aria-label="Stop generating"]') ||
+        document.querySelector('[aria-label*="Stop"]') ||
+        document.querySelector('.stop-button') ||
+        document.querySelector('button[aria-label="Stop"]')
+      )
+    }).catch(() => false)
+
+    if (!isGenerating) {
+      console.log('[wait] Generation complete — stop button gone')
+      break
+    }
+    console.log('[wait] Still generating — waiting 2s...')
+    await new Promise(r => setTimeout(r, pollInterval))
+  }
+
+  // Buffer after generation completes
+  await new Promise(r => setTimeout(r, 2000))
+
+  // Scroll last model turn into view
+  await page.evaluate(() => {
+    const turns = document.querySelectorAll(
+      'ms-chat-turn[actor="model"], ms-chat-turn[data-turn-actor="model"], [data-actor="model"]'
+    )
+    if (turns.length > 0) {
+      turns[turns.length - 1].scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+  }).catch(() => {})
+
+  await new Promise(r => setTimeout(r, 1000))
+
+  // Hover over last model turn to reveal action buttons
+  await page.evaluate(() => {
+    const turns = document.querySelectorAll(
+      'ms-chat-turn[actor="model"], ms-chat-turn[data-turn-actor="model"], [data-actor="model"]'
+    )
+    if (turns.length > 0) {
+      const lastTurn = turns[turns.length - 1] as HTMLElement
+      lastTurn.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+      lastTurn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
+    }
+  }).catch(() => {})
+
+  await new Promise(r => setTimeout(r, 800))
+
+  // Click 3-dot more options button on last model turn
+  const threeDotSelectors = [
+    'ms-chat-turn[actor="model"]:last-of-type button[aria-label="More options"]',
+    'ms-chat-turn[actor="model"]:last-of-type button[aria-label="More"]',
+    'ms-chat-turn[data-turn-actor="model"]:last-of-type button[aria-label="More options"]',
+    '[data-actor="model"]:last-of-type button[aria-label="More options"]',
+    'ms-chat-turn[actor="model"]:last-of-type mat-icon-button',
+    'button[aria-label="More options"]',
+    'button[aria-label="More"]',
+  ]
+
+  let threeDotClicked = false
+  for (const sel of threeDotSelectors) {
+    try {
+      const btn = await page.$(sel)
+      if (btn) {
+        await btn.scrollIntoViewIfNeeded()
+        await btn.click()
+        console.log('[wait] 3-dot clicked:', sel)
+        threeDotClicked = true
+        break
+      }
+    } catch { /* try next */ }
+  }
+
+  if (!threeDotClicked) {
+    console.warn('[wait] Could not find 3-dot button — falling back to DOM extraction')
+    // Fallback: extract text directly from DOM
+    return await this.extractResponseFromDOM(page)
+  }
+
+  await new Promise(r => setTimeout(r, 600))
+
+  // Click Copy in dropdown
+  const copySelectors = [
+    'button[aria-label="Copy"]',
+    '[role="menuitem"][aria-label="Copy"]',
+    'mat-menu-item:has-text("Copy")',
+    '[role="menuitem"]:has-text("Copy")',
+    '.mat-menu-item:has-text("Copy")',
+    'button:has-text("Copy")',
+  ]
+
+  let copyClicked = false
+  for (const sel of copySelectors) {
+    try {
+      const btn = await page.$(sel)
+      if (btn) {
+        await btn.click()
+        console.log('[wait] Copy clicked:', sel)
+        copyClicked = true
+        break
+      }
+    } catch { /* try next */ }
+  }
+
+  if (!copyClicked) {
+    console.warn('[wait] Could not click Copy — falling back to DOM extraction')
+    // Close any open menu first
+    await page.keyboard.press('Escape').catch(() => {})
+    return await this.extractResponseFromDOM(page)
+  }
+
+  await new Promise(r => setTimeout(r, 800))
+
+  // Read clipboard
+  const clipboardText = await page.evaluate(async () => {
+    try {
+      return await navigator.clipboard.readText()
+    } catch {
+      return ''
+    }
+  })
+
+  if (clipboardText && clipboardText.trim().length > 0) {
+    console.log('[wait] Got clipboard response, length:', clipboardText.length)
+    return { text: clipboardText, debug: null }
+  }
+
+  console.warn('[wait] Clipboard empty — falling back to DOM extraction')
+  return await this.extractResponseFromDOM(page)
+}
+
+// Add this new helper method in the class (after waitForResponse):
+private async extractResponseFromDOM(page: Page): Promise<ParsedResponse> {
+  console.log('[fallback] Extracting response from DOM...')
+  try {
+    const text = await page.evaluate(() => {
+      const turns = document.querySelectorAll(
+        'ms-chat-turn[actor="model"], ms-chat-turn[data-turn-actor="model"], [data-actor="model"]'
+      )
+      if (turns.length === 0) return ''
+      const lastTurn = turns[turns.length - 1]
+      return lastTurn.textContent?.trim() || ''
+    })
+    return { text: text || '', debug: text ? null : 'DOM extraction returned empty' }
+  } catch (e) {
+    return { text: '', debug: String(e) }
+  }
+}
+
+---
+
+CHANGE 3 — gemini-studio.ts — Grant clipboard permissions in initSession:
+
+In the initSession method, find where browser context (browserContext 
+or context) is created. Right after context is created and before 
+any navigation, add:
+
+await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+console.log('[init] Clipboard permissions granted')
+
+---
+
+CHANGE 4 — video-uploader.tsx — Save projectId to localStorage:
+
+In the VideoUploader component, in the handleSubmit function,
+after a successful response is received (inside the 
+if (data.success && data.response) block, after setMessages),
+add:
+
+localStorage.setItem('shiva-last-project-id', projectId)
+console.log('[step1] Saved projectId for Step 6:', projectId)
+
+---
+
+No other changes. Step 1 must work exactly as before with these 
+4 additions only. Do not modify voicemap files.

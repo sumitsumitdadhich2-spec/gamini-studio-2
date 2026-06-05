@@ -1,0 +1,391 @@
+{
+  "summary": {
+    "voiceover_duration": "00.33.90",
+    "total_clip_duration": "00.33.90",
+    "total_clips": 12,
+    "match_status": "PERFECT",
+    "warning": null
+  },
+  "voiceover_map": [
+    {
+      "segment": 1,
+      "start": "00.00.00",
+      "end": "00.01.49",
+      "type": "SPEECH",
+      "words": "I rushed out of my car for the biggest job interview of my life,",
+      "clips_assigned": [
+        1
+      ]
+    },
+    {
+      "segment": 2,
+      "start": "00.01.49",
+      "end": "00.03.48",
+      "type": "SPEECH",
+      "words": "completely unaware my skirt was caught in the door and pulling up with every step.",
+      "clips_assigned": [
+        2
+      ]
+    },
+    {
+      "segment": 3,
+      "start": "00.03.48",
+      "end": "00.05.47",
+      "type": "SPEECH",
+      "words": "A homeless man tried to shout and warn me, but I ignored him and ran inside.",
+      "clips_assigned": [
+        3
+      ]
+    },
+    {
+      "segment": 4,
+      "start": "00.05.47",
+      "end": "00.07.46",
+      "type": "SPEECH",
+      "words": "Behind my back, a greedy thief in a blue suit saw his chance.",
+      "clips_assigned": [
+        4
+      ]
+    },
+    {
+      "segment": 5,
+      "start": "00.07.46",
+      "end": "00.08.96",
+      "type": "SPEECH",
+      "words": "He taped my car window, rolled it down, and stole my wallet.",
+      "clips_assigned": [
+        5
+      ]
+    },
+    {
+      "segment": 6,
+      "start": "00.08.96",
+      "end": "00.10.95",
+      "type": "SPEECH",
+      "words": "When the homeless man tried to stop him, the thief just threw him a dollar and scoffed.",
+      "clips_assigned": [
+        5
+      ]
+    },
+    {
+      "segment": 7,
+      "start": "00.10.95",
+      "end": "00.12.94",
+      "type": "SPEECH",
+      "words": "Inside, the receptionist shocked me by saying I violated the dress code.",
+      "clips_assigned": [
+        6
+      ]
+    },
+    {
+      "segment": 8,
+      "start": "00.12.94",
+      "end": "00.15.43",
+      "type": "SPEECH",
+      "words": "I looked down in horror, realizing my skirt was ruined and exposing my underwear.",
+      "clips_assigned": [
+        6
+      ]
+    },
+    {
+      "segment": 9,
+      "start": "00.15.43",
+      "end": "00.16.92",
+      "type": "SPEECH",
+      "words": "Desperate, I ran back outside to the homeless man.",
+      "clips_assigned": [
+        7
+      ]
+    },
+    {
+      "segment": 10,
+      "start": "00.16.92",
+      "end": "00.19.90",
+      "type": "SPEECH",
+      "words": "I begged him for his scarf to cover myself, offering my precious wedding ring as collateral.",
+      "clips_assigned": [
+        7
+      ]
+    },
+    {
+      "segment": 11,
+      "start": "00.19.90",
+      "end": "00.22.89",
+      "type": "SPEECH",
+      "words": "He kindly handed it to me, and I rushed back in, only to find the thief had bribed the receptionist to skip the line.",
+      "clips_assigned": [
+        8
+      ]
+    },
+    {
+      "segment": 12,
+      "start": "00.22.89",
+      "end": "00.24.88",
+      "type": "SPEECH",
+      "words": "He sneered at me and strutted into the CEO's office.",
+      "clips_assigned": [
+        9
+      ]
+    },
+    {
+      "segment": 13,
+      "start": "00.24.88",
+      "end": "00.26.37",
+      "type": "SPEECH",
+      "words": "But when the CEO's chair spun around, the thief froze.",
+      "clips_assigned": [
+        10
+      ]
+    },
+    {
+      "segment": 14,
+      "start": "00.26.37",
+      "end": "00.27.37",
+      "type": "SPEECH",
+      "words": "It was the homeless man.",
+      "clips_assigned": [
+        10
+      ]
+    },
+    {
+      "segment": 15,
+      "start": "00.27.37",
+      "end": "00.27.87",
+      "type": "SPEECH",
+      "words": "He had glued the candidate's chair.",
+      "clips_assigned": [
+        11
+      ]
+    },
+    {
+      "segment": 16,
+      "start": "00.27.87",
+      "end": "00.30.85",
+      "type": "SPEECH",
+      "words": "As the thief tried to flee, his pants ripped completely off, exposing his underwear just as the police arrived.",
+      "clips_assigned": [
+        11
+      ]
+    },
+    {
+      "segment": 17,
+      "start": "00.30.85",
+      "end": "00.33.90",
+      "type": "SPEECH",
+      "words": "The CEO handed my ring back, smiled, and hired me on the spot.",
+      "clips_assigned": [
+        12
+      ]
+    }
+  ],
+  "clips": [
+    {
+      "clip_number": 1,
+      "movie_start": "00.00.00",
+      "movie_end": "00.01.70",
+      "clip_duration": "00.01.70",
+      "voiceover_start": "00.00.00",
+      "voiceover_end": "00.01.70",
+      "voiceover_words": "I rushed out of my car",
+      "scene_description": "Woman opening her silver car's front door to step out.",
+      "why_selected": "First step of car exit.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 2,
+      "movie_start": "00.05.00",
+      "movie_end": "00.07.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.01.70",
+      "voiceover_end": "00.03.70",
+      "voiceover_words": "and pulling up with every step.",
+      "scene_description": "Red knit skirt tightening and rising as she walks off.",
+      "why_selected": "Shows active consequence.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 3,
+      "movie_start": "00.07.00",
+      "movie_end": "00.09.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.03.70",
+      "voiceover_end": "00.05.70",
+      "voiceover_words": "A homeless man tried to shout and warn me,",
+      "scene_description": "Homeless man sitting on floor trying to signal her.",
+      "why_selected": "Establishes ignored help.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 30,
+        "reason": "speaker_dialogue"
+      }
+    },
+    {
+      "clip_number": 4,
+      "movie_start": "00.14.00",
+      "movie_end": "00.16.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.05.70",
+      "voiceover_end": "00.07.70",
+      "voiceover_words": "greedy thief in a blue suit saw his chance.",
+      "scene_description": "Man in blue suit approaching the unattended car.",
+      "why_selected": "Thief introduction.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 5,
+      "movie_start": "00.54.00",
+      "movie_end": "00.56.20",
+      "clip_duration": "00.02.20",
+      "voiceover_start": "00.07.70",
+      "voiceover_end": "00.09.90",
+      "voiceover_words": "He taped my car window, rolled it down, and stole my wallet.",
+      "scene_description": "Thief reaching through window to lift yellow wallet.",
+      "why_selected": "Actual moment of robbery.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 6,
+      "movie_start": "01.40.00",
+      "movie_end": "01.45.00",
+      "clip_duration": "00.05.00",
+      "voiceover_start": "00.09.90",
+      "voiceover_end": "00.14.90",
+      "voiceover_words": "I looked down in horror, realizing my skirt was ruined and exposing my underwear.",
+      "scene_description": "Actress looking down with panic, gathering her clothes.",
+      "why_selected": "Anxious horror match.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 7,
+      "movie_start": "02.14.00",
+      "movie_end": "02.17.00",
+      "clip_duration": "00.03.00",
+      "voiceover_start": "00.14.90",
+      "voiceover_end": "00.17.90",
+      "voiceover_words": "Desperate, I ran back outside to the homeless man. I begged him for his scarf to cover myself.",
+      "scene_description": "Girl speaking to homeless man on pavement pleading for his scarf.",
+      "why_selected": "Matches direct plea.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 8,
+      "movie_start": "04.04.00",
+      "movie_end": "04.07.00",
+      "clip_duration": "00.03.00",
+      "voiceover_start": "00.17.90",
+      "voiceover_end": "00.20.90",
+      "voiceover_words": "He kindly handed it to me, and I rushed back in, only to find the thief had bribed the receptionist to skip the line.",
+      "scene_description": "The thief handing over bribe cash discretely under ledger.",
+      "why_selected": "Bribe visual.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 9,
+      "movie_start": "05.16.00",
+      "movie_end": "05.18.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.20.90",
+      "voiceover_end": "00.22.90",
+      "voiceover_words": "He sneered at me and strutted into the CEO's office.",
+      "scene_description": "Thief walking through double glass office portal doors.",
+      "why_selected": "Interview lobby door push.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 10,
+      "movie_start": "05.34.00",
+      "movie_end": "05.36.00",
+      "clip_duration": "00.02.00",
+      "voiceover_start": "00.22.90",
+      "voiceover_end": "00.24.90",
+      "voiceover_words": "It was the homeless man.",
+      "scene_description": "Close up of CEO face with round matching spectacles.",
+      "why_selected": "Direct reveal.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    },
+    {
+      "clip_number": 11,
+      "movie_start": "06.21.00",
+      "movie_end": "06.24.00",
+      "clip_duration": "00.03.00",
+      "voiceover_start": "00.24.90",
+      "voiceover_end": "00.27.90",
+      "voiceover_words": "As the thief tried to flee, his pants ripped completely off, exposing his underwear just as the police arrived.",
+      "scene_description": "Thief attempting jump, pants remaining glued to padding.",
+      "why_selected": "Peak humorous action.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 40,
+        "reason": "rip sound"
+      }
+    },
+    {
+      "clip_number": 12,
+      "movie_start": "06.57.00",
+      "movie_end": "07.01.00",
+      "clip_duration": "00.04.00",
+      "voiceover_start": "00.27.90",
+      "voiceover_end": "00.31.90",
+      "voiceover_words": "The CEO handed my ring back, smiled, and hired me on the spot.",
+      "scene_description": "CEO smiling warmly, dropping precious ring into her open palm.",
+      "why_selected": "Ultimate moral resolution.",
+      "speed": 1,
+      "movie_audio": {
+        "level_percent": 0,
+        "reason": "muted"
+      }
+    }
+  ],
+  "audio_boosts": [
+    {
+      "boost_number": 1,
+      "start": "00.07.00",
+      "end": "00.09.00",
+      "level_percent": 30,
+      "sound_description": "Warning shout boost"
+    },
+    {
+      "boost_number": 3,
+      "start": "06.21.00",
+      "end": "06.24.00",
+      "level_percent": 40,
+      "sound_description": "Loud tearing pants boost"
+    }
+  ]
+}

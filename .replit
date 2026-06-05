@@ -1,0 +1,88 @@
+modules = ["nodejs-20", "web", "bash"]
+
+[deployment]
+router = "application"
+deploymentTarget = "vm"
+run = ["bash", "-c", "cd artifacts/api-server && PORT=5000 NODE_ENV=production node --enable-source-maps ./dist/index.mjs"]
+build = ["bash", "-c", "pnpm --filter gemini-studio run build && pnpm --filter api-server run build"]
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "web"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "api"
+
+[[workflows.workflow]]
+name = "web"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/gemini-studio && PORT=5000 BASE_PATH=/ pnpm exec vite --config vite.config.ts --host 0.0.0.0"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "api"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/api-server && NODE_ENV=development PORT=8080 node --enable-source-maps ./dist/index.mjs"
+waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[agent]
+stack = "BEST_EFFORT_FALLBACK"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 8082
+externalPort = 3001
+
+[[ports]]
+localPort = 25667
+externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+HOSTNAME = "0.0.0.0"
+PLAYWRIGHT_BROWSERS_PATH = "/home/runner/workspace/.playwright-browsers"
+
+[nix]
+channel = "stable-25_05"
