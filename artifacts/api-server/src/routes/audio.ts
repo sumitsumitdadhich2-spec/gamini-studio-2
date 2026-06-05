@@ -94,11 +94,10 @@ audioRouter.post(
       return;
     }
 
-    const thresholdDb = parseFloat(req.body.threshold_db) || -40;
+    const thresholdDb = parseFloat(req.body.threshold_db) || -20;
     const minSilenceDuration =
-      parseFloat(req.body.min_silence_duration) || 0.3;
-    const padding = parseFloat(req.body.padding) || 0.1;
-    const effectiveDuration = Math.max(minSilenceDuration - padding, 0.05);
+      parseFloat(req.body.min_silence_duration) || 0.1;
+    const padding = parseFloat(req.body.padding) || 0.05;
 
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "shiva-audio-"));
     const inputPath = path.join(tmpDir, "input.mp3");
@@ -107,15 +106,21 @@ audioRouter.post(
     try {
       await fs.writeFile(inputPath, req.file.buffer);
 
+      // Use silenceremove filter with proper parameters for removing silence throughout
+      // stop_periods=-1 means remove all silence periods (not just first)
+      // stop_duration controls minimum silence length to remove
       const filter = [
         `silenceremove=`,
         `start_periods=1:`,
-        `start_silence=${effectiveDuration}:`,
+        `start_duration=${minSilenceDuration}:`,
         `start_threshold=${thresholdDb}dB:`,
         `stop_periods=-1:`,
-        `stop_silence=${effectiveDuration}:`,
-        `stop_threshold=${thresholdDb}dB`,
+        `stop_duration=${minSilenceDuration}:`,
+        `stop_threshold=${thresholdDb}dB:`,
+        `window=${padding}`,
       ].join("");
+      
+      logger.info(`[audio] Running FFmpeg with filter: ${filter}`);
 
       await new Promise<void>((resolve, reject) => {
         const proc = spawn(FFMPEG_BIN, [
@@ -128,13 +133,17 @@ audioRouter.post(
         ]);
 
         const stderrChunks: Buffer[] = [];
-        proc.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+        proc.stderr?.on("data", (chunk: Buffer) => {
+          stderrChunks.push(chunk);
+          logger.info(`[ffmpeg stderr] ${chunk.toString()}`);
+        });
 
         proc.on("close", (code) => {
           if (code === 0) {
             resolve();
           } else {
-            const detail = Buffer.concat(stderrChunks).toString().slice(-300);
+            const detail = Buffer.concat(stderrChunks).toString().slice(-500);
+            logger.error(`[ffmpeg] Failed with code ${code}: ${detail}`);
             reject(new Error(`FFmpeg failed (code ${code}): ${detail}`));
           }
         });
@@ -151,6 +160,12 @@ audioRouter.post(
       });
 
       const outputBuffer = await fs.readFile(outputPath);
+      
+      // Log duration comparison
+      const inputSize = req.file.buffer.length;
+      const outputSize = outputBuffer.length;
+      logger.info(`[audio] Silence removal complete. Input: ${inputSize} bytes, Output: ${outputSize} bytes`);
+      
       res.set("Content-Type", "audio/mpeg");
       res.set("Content-Disposition", 'attachment; filename="processed.mp3"');
       res.send(outputBuffer);
