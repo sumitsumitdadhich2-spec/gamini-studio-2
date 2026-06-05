@@ -1,29 +1,45 @@
 import { Router } from "express";
 import multer from "multer";
 import { spawn, execSync } from "child_process";
-import { promises as fs } from "fs";
+import { promises as fs, existsSync } from "fs";
 import path from "path";
 import os from "os";
 import { logger } from "../lib/logger";
-import ffmpegStatic from "ffmpeg-static";
 
 function detectFfmpeg(): string {
-  // First try ffmpeg-static (bundled binary for serverless)
-  if (ffmpegStatic) {
-    logger.info(`[ffmpeg] Found ffmpeg-static: ${ffmpegStatic}`);
-    // Verify the binary actually exists and is executable
-    try {
-      execSync(`test -x "${ffmpegStatic}"`, { shell: "/bin/sh", timeout: 2000 });
-      return ffmpegStatic;
-    } catch {
-      logger.warn(`[ffmpeg] ffmpeg-static path exists but not executable: ${ffmpegStatic}`);
+  // Try multiple paths for ffmpeg-static binary
+  const ffmpegStaticPaths = [
+    // Runtime resolved path (works in both dev and prod)
+    path.join(process.cwd(), "node_modules", "ffmpeg-static", "ffmpeg"),
+    // Relative to this file's location
+    path.join(__dirname, "..", "..", "node_modules", "ffmpeg-static", "ffmpeg"),
+    // Workspace root
+    path.join(process.cwd(), "..", "..", "node_modules", "ffmpeg-static", "ffmpeg"),
+  ];
+  
+  for (const ffmpegPath of ffmpegStaticPaths) {
+    if (existsSync(ffmpegPath)) {
+      logger.info(`[ffmpeg] Found ffmpeg-static at: ${ffmpegPath}`);
+      try {
+        execSync(`test -x "${ffmpegPath}"`, { shell: "/bin/sh", timeout: 2000 });
+        return ffmpegPath;
+      } catch {
+        // Try to make it executable
+        try {
+          execSync(`chmod +x "${ffmpegPath}"`, { shell: "/bin/sh", timeout: 2000 });
+          logger.info(`[ffmpeg] Made ffmpeg executable: ${ffmpegPath}`);
+          return ffmpegPath;
+        } catch {
+          logger.warn(`[ffmpeg] Cannot make ffmpeg executable: ${ffmpegPath}`);
+        }
+      }
     }
   }
   
+  // Fallback to system ffmpeg
   const shellCandidates = [
     "which ffmpeg",
     "command -v ffmpeg",
-    "type -P ffmpeg",
   ];
 
   for (const cmd of shellCandidates) {
