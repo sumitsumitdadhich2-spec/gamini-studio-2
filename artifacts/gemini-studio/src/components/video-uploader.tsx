@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { ShivaHeader } from '@/components/shiva-header'
 import { saveLastResponse, saveCleanedScript } from '@/lib/api-keys'
 import { Sounds } from '@/lib/sounds'
+import { uploadFileViaWS } from '@/lib/ws-chunked-upload'
 
 interface Message {
   role: 'user' | 'assistant' | 'error'
@@ -136,14 +137,16 @@ function FormattedResponse({ content }: { content: string }) {
   return <div className="space-y-0.5">{lines.map(renderLine)}</div>
 }
 
-const CHUNK_SIZE = 5 * 1024 * 1024
+// Use WebSocket for files larger than 500MB (more reliable than HTTP)
+const WS_UPLOAD_THRESHOLD = 500 * 1024 * 1024
+const HTTP_CHUNK_SIZE = 5 * 1024 * 1024
 
-async function uploadChunked(file: File, projectId: string, onProgress: (pct: number) => void): Promise<string> {
+async function uploadViaHTTPChunks(file: File, projectId: string, onProgress: (pct: number) => void): Promise<string> {
   const uploadId = `${projectId}-${Date.now()}`
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+  const totalChunks = Math.ceil(file.size / HTTP_CHUNK_SIZE)
   let filePath = ''
   for (let i = 0; i < totalChunks; i++) {
-    const chunk = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size))
+    const chunk = file.slice(i * HTTP_CHUNK_SIZE, Math.min((i + 1) * HTTP_CHUNK_SIZE, file.size))
     const fd = new FormData()
     fd.append('action', 'upload-chunk')
     fd.append('uploadId', uploadId)
@@ -269,10 +272,29 @@ export function VideoUploader() {
       formData.append('youtubeLinks', youtubeLinks.filter(l => l.trim()).join('\n'))
       formData.append('model', selectedModel)
 
-      if (video && video.size > CHUNK_SIZE) {
-        const filePath = await uploadChunked(video, projectId, setUploadProgress)
+      if (video && video.size > WS_UPLOAD_THRESHOLD) {
+        // Use WebSocket for large files (>500MB) — more reliable, automatic reconnect, no HTTP timeout
+        console.log('[v0] Using WebSocket upload for', (video.size / 1024 / 1024).toFixed(1), 'MB file')
+        const filePath = await uploadFileViaWS({
+          file: video,
+          projectId,
+          onProgress: (progress) => {
+            setUploadProgress(Math.round((progress.uploadedBytes / progress.totalBytes) * 70))
+            console.log(`[v0] Upload progress: ${progress.percentage}% (${(progress.uploadedBytes / 1024 / 1024).toFixed(1)}/${(progress.totalBytes / 1024 / 1024).toFixed(1)} MB)`)
+          },
+          onError: (error) => {
+            console.error('[v0] Upload error:', error)
+            setMessages(prev => [...prev, { role: 'error', content: `Upload failed: ${error}` }])
+            setIsLoading(false)
+          }
+        })
+        formData.append('filePath', filePath)
+      } else if (video && video.size > HTTP_CHUNK_SIZE) {
+        // Use HTTP chunking for medium files
+        const filePath = await uploadViaHTTPChunks(video, projectId, setUploadProgress)
         formData.append('filePath', filePath)
       } else if (video) {
+        // Direct upload for small files
         formData.append('video', video)
         setUploadProgress(70)
       } else {
@@ -349,9 +371,22 @@ export function VideoUploader() {
       formData.append('message', userMessage)
       formData.append('model', selectedModel)
 
-      if (chatVideo && chatVideo.size > CHUNK_SIZE) {
+      if (chatVideo && chatVideo.size > WS_UPLOAD_THRESHOLD) {
         setGenerationPhase('uploading')
-        const filePath = await uploadChunked(chatVideo, projectId, () => {})
+        const filePath = await uploadFileViaWS({
+          file: chatVideo,
+          projectId,
+          onProgress: () => {},
+          onError: (error) => {
+            console.error('[v0] Chat video upload error:', error)
+            setMessages(prev => [...prev, { role: 'error', content: `Video upload failed: ${error}` }])
+            setIsLoading(false)
+          }
+        })
+        formData.append('filePath', filePath)
+      } else if (chatVideo && chatVideo.size > HTTP_CHUNK_SIZE) {
+        setGenerationPhase('uploading')
+        const filePath = await uploadViaHTTPChunks(chatVideo, projectId, () => {})
         formData.append('filePath', filePath)
       } else if (chatVideo) {
         formData.append('video', chatVideo)
