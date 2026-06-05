@@ -6,6 +6,7 @@ import path from "path";
 import os from "os";
 import { randomUUID } from "crypto";
 import { logger } from "../lib/logger";
+import ffmpegStatic from "ffmpeg-static";
 
 // All shiva temp files go here — workspace has 256 GB vs /tmp's 32 GB quota.
 const WORK_DIR = path.join(process.cwd(), "uploads", "tmp");
@@ -29,6 +30,11 @@ const WORK_DIR = path.join(process.cwd(), "uploads", "tmp");
 })();
 
 function detectFfmpeg(): string {
+  // First try ffmpeg-static (bundled binary for serverless)
+  if (ffmpegStatic) {
+    return ffmpegStatic;
+  }
+  
   const cmds = [
     "which ffmpeg",
     "ls /nix/store/*-ffmpeg*/bin/ffmpeg 2>/dev/null | head -1",

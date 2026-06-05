@@ -5,8 +5,14 @@ import { promises as fs } from "fs";
 import path from "path";
 import os from "os";
 import { logger } from "../lib/logger";
+import ffmpegStatic from "ffmpeg-static";
 
 function detectFfmpeg(): string {
+  // First try ffmpeg-static (bundled binary for serverless)
+  if (ffmpegStatic) {
+    return ffmpegStatic;
+  }
+  
   const shellCandidates = [
     "which ffmpeg",
     "ls /nix/store/*-ffmpeg*/bin/ffmpeg 2>/dev/null | head -1",
