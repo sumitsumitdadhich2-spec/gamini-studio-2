@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "node node_modules/ffmpeg-static/install.js || true",
     "dev": "export NODE_ENV=development && export PORT=${PORT:-8080} && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "build:prod": "node ./build.mjs && PLAYWRIGHT_BROWSERS_PATH=/home/runner/workspace/.playwright-browsers playwright install chromium",
