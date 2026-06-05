@@ -1,42 +1,15 @@
 /**
- * Smart API client that detects environment and routes API calls correctly.
- * Handles both local dev (with proxy) and v0.app preview (direct to localhost:8080).
+ * Smart API client that uses relative paths for all API calls.
+ * Works with vite proxy in dev, and direct routing in production.
+ * The vite proxy configuration forwards /api/* to localhost:8080.
  */
 
-let API_BASE_URL: string | null = null;
-
 function detectAPIBase(): string {
-  if (API_BASE_URL) return API_BASE_URL;
-
-  // In development with vite proxy, use relative paths
-  if (import.meta.env.DEV && typeof window !== 'undefined') {
-    // Check if we're in v0.app preview or local dev
-    const host = window.location.hostname;
-    const port = window.location.port;
-
-    console.log('[api-client] Environment detected:', { host, port, isDev: import.meta.env.DEV });
-
-    // v0.app preview URLs are typically *.v0.app
-    if (host.includes('v0.app')) {
-      // In v0.app preview, the API server is on a different port (8080)
-      API_BASE_URL = `http://${host}:8080`;
-      console.log('[api-client] v0.app preview detected, using:', API_BASE_URL);
-    } else if (host === 'localhost' && port === '8080') {
-      // Running API server directly
-      API_BASE_URL = '';
-      console.log('[api-client] Direct localhost:8080, using relative paths');
-    } else {
-      // Local dev with vite proxy
-      API_BASE_URL = '';
-      console.log('[api-client] Local dev with vite proxy, using relative paths');
-    }
-  } else {
-    // Production: use relative paths (served from same origin)
-    API_BASE_URL = '';
-    console.log('[api-client] Production mode, using relative paths');
-  }
-
-  return API_BASE_URL;
+  // ALWAYS use relative paths. The vite proxy (in dev) and the app (in prod)
+  // both handle /api/* routing correctly. Never try to access localhost:8080 directly
+  // as it breaks CORS on v0.app and other deployment environments.
+  console.log('[api-client] Using relative paths for all API calls');
+  return '';
 }
 
 /**
@@ -50,8 +23,6 @@ export async function apiCall(
 ): Promise<Response> {
   const baseUrl = detectAPIBase();
   const fullUrl = baseUrl + endpoint;
-  
-  console.log('[api-client] Calling:', fullUrl);
   
   const headers: Record<string, string> = {};
   if (!(options?.body instanceof FormData)) {
@@ -98,18 +69,14 @@ export async function apiDelete(endpoint: string): Promise<Response> {
 
 /**
  * For WebSocket connections, get the correct URL.
+ * Uses the same host as the current page (vite proxy will forward in dev).
  */
 export function getWebSocketURL(endpoint: string): string {
   if (typeof window === 'undefined') return endpoint;
   
-  const host = window.location.hostname;
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host; // Include port if present
   
-  if (host.includes('v0.app')) {
-    // v0.app preview
-    return `${proto}//${host}:8080${endpoint}`;
-  }
-  
-  // Local dev or production
-  return `${proto}//${window.location.host}${endpoint}`;
+  // Use the same host as the current page (vite proxy will forward to localhost:8080 in dev)
+  return `${proto}//${host}${endpoint}`;
 }
