@@ -38,7 +38,7 @@ function detectFfmpeg(): string {
   ];
   for (const cmd of cmds) {
     try {
-      const r = execSync(cmd, { shell: true, timeout: 5000, stdio: ["pipe", "pipe", "pipe"] })
+      const r = execSync(cmd, { shell: "/bin/sh" as any, timeout: 5000, stdio: ["pipe", "pipe", "pipe"] as any })
         .toString()
         .trim();
       if (r) return r.split("\n")[0].trim();
@@ -104,7 +104,7 @@ function probeVideoDuration(filePath: string): number {
   try {
     const out = execSync(
       `"${ffprobeBin}" -v quiet -select_streams v:0 -show_entries stream=duration -of csv=p=0 "${filePath}"`,
-      { timeout: 8000, stdio: ["pipe", "pipe", "pipe"] }
+      { shell: "/bin/sh" as any, timeout: 8000, stdio: ["pipe", "pipe", "pipe"] as any }
     ).toString().trim();
     return parseFloat(out) || 0;
   } catch {
