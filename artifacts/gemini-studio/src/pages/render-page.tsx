@@ -338,7 +338,7 @@ export default function RenderPage() {
       setUploadStatus('Starting clip extraction…')
       setPhase('extracting')
 
-      const res  = await apiPost('/api/render/extract', { moviePath: serverPath, json: parsedJson })
+      const res  = await apiPost('/api/render/extract', { moviePath: serverPath, json: jsonText })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Extract failed')
 
@@ -379,7 +379,7 @@ export default function RenderPage() {
     setErrorMsg('')
 
     try {
-      const res  = await apiPost('/api/render/merge', { extractJobId, json: parsedJson })
+      const res  = await apiPost('/api/render/merge', { extractJobId, json: jsonText })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Merge failed')
 
@@ -993,7 +993,7 @@ export default function RenderPage() {
 
         {/* ═══════════════════════════════════════════════════════════════
             PHASE 3: FINALIZE (voiceover + quality)
-        ════════════════════════════════════════════════════════════════ */}
+        ═══���════════════════════════════════════════════════════════════ */}
 
         {(phase === 'merged') && (
           <>
