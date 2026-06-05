@@ -2,6 +2,9 @@
   "version": 2,
   "buildCommand": "pnpm run build",
   "outputDirectory": "artifacts/gemini-studio/dist/public",
-  "publicPath": "/",
-  "installCommand": "pnpm install"
+  "public": "artifacts/gemini-studio/dist/public",
+  "installCommand": "pnpm install",
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
