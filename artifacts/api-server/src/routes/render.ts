@@ -193,7 +193,7 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 * 1024 },
 });
 
-// ── Job Stores ─────────────────────────────���─────────────────────────────────
+// ── Job Stores ─────────────────────────────�����─────────────────────────────────
 // Jobs are stored in memory but also persisted to disk so they survive server restarts
 
 interface ClipInfo {
@@ -1020,8 +1020,14 @@ renderRouter.get("/render/final-download/:jobId", (req, res) => {
   if (!existsSync(job.outputPath)) {
     res.status(404).json({ error: "File no longer available — server may have restarted" }); return;
   }
+  // Set CORS headers for file download
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
   res.setHeader("Content-Type", "video/mp4");
   res.setHeader("Content-Disposition", `attachment; filename="shiva-final-${req.params.jobId}.mp4"`);
+  res.setHeader("Content-Length", statSync(job.outputPath).size);
   createReadStream(job.outputPath).pipe(res);
 });
 
@@ -1063,8 +1069,14 @@ renderRouter.get("/render/export-download/:jobId", (req, res) => {
   const job = exportJobs[req.params.jobId];
   if (!job || job.status !== "done" || !job.outputPath) { res.status(404).json({ error: "Not ready" }); return; }
   if (!existsSync(job.outputPath)) { res.status(404).json({ error: "File no longer available" }); return; }
+  // Set CORS headers for file download
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
   res.setHeader("Content-Type", "video/mp4");
   res.setHeader("Content-Disposition", `attachment; filename="shiva-export-${req.params.jobId}.mp4"`);
+  res.setHeader("Content-Length", statSync(job.outputPath).size);
   createReadStream(job.outputPath).pipe(res);
 });
 
@@ -1137,8 +1149,14 @@ renderRouter.get("/render/download/:jobId", async (req, res) => {
   const job = jobs[req.params.jobId];
   if (!job || job.status !== "done" || !job.outputPath) { res.status(404).json({ error: "Not ready" }); return; }
   if (!existsSync(job.outputPath)) { res.status(404).json({ error: "Output file no longer available" }); return; }
+  // Set CORS headers for file download
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
   res.setHeader("Content-Type", "video/mp4");
   res.setHeader("Content-Disposition", `attachment; filename="shiva-render-${req.params.jobId}.mp4"`);
+  res.setHeader("Content-Length", statSync(job.outputPath).size);
   const stream = createReadStream(job.outputPath);
   stream.pipe(res);
   stream.on("error", () => { if (!res.headersSent) res.status(500).json({ error: "Stream failed" }); });
@@ -1150,6 +1168,29 @@ renderRouter.delete("/render/job/:jobId", async (req, res) => {
   if (job.outputPath) await safeDelete(job.outputPath);
   delete jobs[req.params.jobId];
   res.json({ success: true });
+});
+
+// ── CORS Preflight Handlers ────────────────────────────────────────────────
+renderRouter.options("/render/final-download/:jobId", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
+  res.status(200).end();
+});
+renderRouter.options("/render/export-download/:jobId", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
+  res.status(200).end();
+});
+renderRouter.options("/render/download/:jobId", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
+  res.status(200).end();
 });
 
 export { renderRouter };
