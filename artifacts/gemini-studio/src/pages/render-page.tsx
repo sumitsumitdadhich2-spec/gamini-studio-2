@@ -469,73 +469,7 @@ export default function RenderPage() {
     }
   }, [phase])
 
-  // Auto-download when finalize completes
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null
-    
-    if (phase === 'done' && finalJobId) {
-      // Use a small delay to ensure file is fully written
-      timer = setTimeout(() => {
-        const downloadUrl = `/api/render/final-download/${finalJobId}`
-        console.log('[v0] Auto-downloading finalized video from:', downloadUrl)
-        
-        // Create a temporary anchor element and trigger download
-        const link = document.createElement('a')
-        link.href = downloadUrl
-        link.download = `shiva-final-${finalJobId}.mp4`
-        link.style.display = 'none'
-        
-        // Append to body, click, and remove
-        document.body.appendChild(link)
-        link.click()
-        
-        // Clean up after a short delay
-        setTimeout(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link)
-          }
-        }, 100)
-      }, 500)
-    }
-    
-    return () => {
-      if (timer) clearTimeout(timer)
-    }
-  }, [phase, finalJobId])
 
-  // Auto-download when export completes
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null
-    
-    if (exportPhase === 'done' && exportJobId) {
-      // Use a small delay to ensure file is fully written
-      timer = setTimeout(() => {
-        const downloadUrl = `/api/render/export-download/${exportJobId}`
-        console.log('[v0] Auto-downloading exported video from:', downloadUrl)
-        
-        // Create a temporary anchor element and trigger download
-        const link = document.createElement('a')
-        link.href = downloadUrl
-        link.download = `shiva-export-${exportJobId}.mp4`
-        link.style.display = 'none'
-        
-        // Append to body, click, and remove
-        document.body.appendChild(link)
-        link.click()
-        
-        // Clean up after a short delay
-        setTimeout(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link)
-          }
-        }, 100)
-      }, 500)
-    }
-    
-    return () => {
-      if (timer) clearTimeout(timer)
-    }
-  }, [exportPhase, exportJobId])
 
   // ── Export: Render without voiceover ─────────────────────────────────────
   const handleExport = async () => {
