@@ -193,7 +193,7 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 * 1024 },
 });
 
-// ── Job Stores ───────────────────────────────────────────────────────────────
+// ── Job Stores ─────────────────────────────�������─────────────────────────────────
 // Jobs are stored in memory but also persisted to disk so they survive server restarts
 
 interface ClipInfo {
@@ -415,7 +415,7 @@ async function processExtract(jobId: string, moviePath: string, editPlan: Record
   }
 }
 
-// ── Process: Merge Clips ──────────────────────────────────────────────────────
+// ── Process: Merge Clips ─��───���────────────────────────────────────────────────
 async function processMerge(jobId: string, extractJobId: string, boosts: any[], editPlanClips: any[] = []) {
   const job   = mergeJobs[jobId];
   const exJob = extractJobs[extractJobId];
@@ -774,7 +774,7 @@ renderRouter.get("/render/check-file", (req, res) => {
   res.json({ exists: existsSync(filePath) });
 });
 
-// ── Chunked pre-upload ────────────────────────────────────────────────────────
+// ── Chunked pre-upload ────────────────────────────────────����───────��──────────
 // Indexed-chunk approach: each chunk is saved as a numbered file in a staging
 // directory.  Retries safely overwrite the same indexed file (idempotent) instead
 // of double-appending.  Assembly happens once all chunks are present.
@@ -1013,16 +1013,57 @@ renderRouter.get("/render/finalize/status/:jobId", (req, res) => {
 });
 
 renderRouter.get("/render/final-download/:jobId", (req, res) => {
-  const job = finalizeJobs[req.params.jobId];
-  if (!job || job.status !== "done" || !job.outputPath) {
-    res.status(404).json({ error: "Not ready" }); return;
+  const jobId = req.params.jobId;
+  
+  // First check if job exists in memory
+  let outputPath: string | null = null;
+  const job = finalizeJobs[jobId];
+  if (job && job.status === "done" && job.outputPath) {
+    outputPath = job.outputPath;
+  } else {
+    // Fallback: construct expected path if job is not in memory
+    // This handles cases where server restarted but file still exists
+    const expectedPath = path.join(WORK_DIR, `shiva-output-${jobId}.mp4`);
+    if (existsSync(expectedPath)) {
+      outputPath = expectedPath;
+    }
   }
-  if (!existsSync(job.outputPath)) {
-    res.status(404).json({ error: "File no longer available — server may have restarted" }); return;
+  
+  if (!outputPath || !existsSync(outputPath)) {
+    res.status(404).json({ error: "File not found" }); return;
   }
-  res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Disposition", `attachment; filename="shiva-final-${req.params.jobId}.mp4"`);
-  createReadStream(job.outputPath).pipe(res);
+  
+  try {
+    // Set CORS headers for file download - fully permissive
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Access-Control-Allow-Credentials", "false");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    
+    // Set proper headers for file download
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", `attachment; filename="shiva-final-${jobId}.mp4"`);
+    res.setHeader("Content-Length", statSync(outputPath).size);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    
+    // Stream the file
+    const stream = createReadStream(outputPath);
+    stream.on("error", (err) => {
+      console.error("[download] Stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Download failed" });
+      }
+    });
+    stream.pipe(res);
+  } catch (err) {
+    console.error("[download] Error streaming file:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Download failed" });
+    }
+  }
 });
 
 renderRouter.delete("/render/final-job/:jobId", async (req, res) => {
@@ -1060,15 +1101,60 @@ renderRouter.get("/render/export/status/:jobId", (req, res) => {
 });
 
 renderRouter.get("/render/export-download/:jobId", (req, res) => {
-  const job = exportJobs[req.params.jobId];
-  if (!job || job.status !== "done" || !job.outputPath) { res.status(404).json({ error: "Not ready" }); return; }
-  if (!existsSync(job.outputPath)) { res.status(404).json({ error: "File no longer available" }); return; }
-  res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Disposition", `attachment; filename="shiva-export-${req.params.jobId}.mp4"`);
-  createReadStream(job.outputPath).pipe(res);
+  const jobId = req.params.jobId;
+  
+  // First check if job exists in memory
+  let outputPath: string | null = null;
+  const job = exportJobs[jobId];
+  if (job && job.status === "done" && job.outputPath) {
+    outputPath = job.outputPath;
+  } else {
+    // Fallback: construct expected path if job is not in memory
+    // This handles cases where server restarted but file still exists
+    const expectedPath = path.join(WORK_DIR, `shiva-export-${jobId}.mp4`);
+    if (existsSync(expectedPath)) {
+      outputPath = expectedPath;
+    }
+  }
+  
+  if (!outputPath || !existsSync(outputPath)) {
+    res.status(404).json({ error: "File not found" }); return;
+  }
+  
+  try {
+    // Set CORS headers for file download - fully permissive
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Access-Control-Allow-Credentials", "false");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    
+    // Set proper headers for file download
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", `attachment; filename="shiva-export-${jobId}.mp4"`);
+    res.setHeader("Content-Length", statSync(outputPath).size);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    
+    // Stream the file
+    const stream = createReadStream(outputPath);
+    stream.on("error", (err) => {
+      console.error("[download] Stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Download failed" });
+      }
+    });
+    stream.pipe(res);
+  } catch (err) {
+    console.error("[download] Error streaming file:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Download failed" });
+    }
+  }
 });
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════���═════════════════════════════════════════════════════════════════
 //  LEGACY SINGLE-STEP ENDPOINTS (kept for backward compat)
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -1134,14 +1220,54 @@ renderRouter.get("/render/status/:jobId", (req, res) => {
 });
 
 renderRouter.get("/render/download/:jobId", async (req, res) => {
-  const job = jobs[req.params.jobId];
-  if (!job || job.status !== "done" || !job.outputPath) { res.status(404).json({ error: "Not ready" }); return; }
-  if (!existsSync(job.outputPath)) { res.status(404).json({ error: "Output file no longer available" }); return; }
-  res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Disposition", `attachment; filename="shiva-render-${req.params.jobId}.mp4"`);
-  const stream = createReadStream(job.outputPath);
-  stream.pipe(res);
-  stream.on("error", () => { if (!res.headersSent) res.status(500).json({ error: "Stream failed" }); });
+  const jobId = req.params.jobId;
+  const job = jobs[jobId];
+  
+  let outputPath: string | null = null;
+  if (job && job.status === "done" && job.outputPath) {
+    outputPath = job.outputPath;
+  } else {
+    // Fallback: check if file exists on disk
+    const expectedPath = path.join(WORK_DIR, `shiva-output-${jobId}.mp4`);
+    if (existsSync(expectedPath)) {
+      outputPath = expectedPath;
+    }
+  }
+  
+  if (!outputPath || !existsSync(outputPath)) { 
+    res.status(404).json({ error: "Output file no longer available" }); 
+    return; 
+  }
+  
+  try {
+    // Set permissive CORS headers for file download
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Access-Control-Allow-Credentials", "false");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    
+    // Set proper headers for file download
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", `attachment; filename="shiva-render-${jobId}.mp4"`);
+    res.setHeader("Content-Length", statSync(outputPath).size);
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    
+    // Stream the file
+    const stream = createReadStream(outputPath);
+    stream.on("error", (err) => { 
+      console.error("[download] Stream error:", err);
+      if (!res.headersSent) res.status(500).json({ error: "Stream failed" }); 
+    });
+    stream.pipe(res);
+  } catch (err) {
+    console.error("[download] Error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Download failed" });
+    }
+  }
 });
 
 renderRouter.delete("/render/job/:jobId", async (req, res) => {
@@ -1150,6 +1276,32 @@ renderRouter.delete("/render/job/:jobId", async (req, res) => {
   if (job.outputPath) await safeDelete(job.outputPath);
   delete jobs[req.params.jobId];
   res.json({ success: true });
+});
+
+// ── CORS Preflight Handlers ────────────────────────────────────────────────
+renderRouter.options("/render/final-download/:jobId", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Allow-Credentials", "false");
+  res.setHeader("Access-Control-Max-Age", "86400");
+  res.status(200).end();
+});
+renderRouter.options("/render/export-download/:jobId", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Allow-Credentials", "false");
+  res.setHeader("Access-Control-Max-Age", "86400");
+  res.status(200).end();
+});
+renderRouter.options("/render/download/:jobId", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Allow-Credentials", "false");
+  res.setHeader("Access-Control-Max-Age", "86400");
+  res.status(200).end();
 });
 
 export { renderRouter };

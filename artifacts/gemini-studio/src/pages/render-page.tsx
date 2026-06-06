@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { ShivaHeader } from '@/components/shiva-header'
 import { Sounds } from '@/lib/sounds'
+import { apiGet, apiPost, apiDelete, apiCall, getWebSocketURL } from '@/lib/api-client'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const VOICEMAP_JSON_KEY   = 'shiva-voicemap-json'
@@ -121,8 +122,8 @@ async function uploadFileViaWebSocket(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const proto    = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const uploadId = `render-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const url      = `${proto}//${location.host}/api/render/ws-upload`
+  const uploadId = `render-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const url      = getWebSocketURL('/api/render/ws-upload')
 
     let ws: WebSocket
     try { ws = new WebSocket(url) } catch { reject(new Error('WebSocket not supported')); return }
@@ -303,7 +304,7 @@ export default function RenderPage() {
   // ── Verify saved movie path still exists on server ───────────────────────
   useEffect(() => {
     if (!movieServerPath) { setMovieChecked(true); return }
-    fetch(`/api/render/check-file?path=${encodeURIComponent(movieServerPath)}`)
+    apiGet(`/api/render/check-file?path=${encodeURIComponent(movieServerPath)}`)
       .then(r => r.json())
       .then(d => {
         if (!d.exists) { clearMoviePath(); setMovieServerPath(null); setMovieFileName('') }
@@ -337,18 +338,14 @@ export default function RenderPage() {
       setUploadStatus('Starting clip extraction…')
       setPhase('extracting')
 
-      const res  = await fetch('/api/render/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ moviePath: serverPath, json: jsonText }),
-      })
+      const res  = await apiPost('/api/render/extract', { moviePath: serverPath, json: jsonText })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Extract failed')
 
       setExtractJobId(data.jobId)
       pollRef.current = setInterval(async () => {
         try {
-          const r = await fetch(`/api/render/extract/status/${data.jobId}`)
+          const r = await apiGet(`/api/render/extract/status/${data.jobId}`)
           const d = await r.json()
           setExtractProg(d.progress ?? 0)
           setExtractCurrent(d.currentClip ?? 0)
@@ -373,7 +370,7 @@ export default function RenderPage() {
     }
   }
 
-  // ── STEP 2: Merge clips ───────────────────────────────────────────────────
+  // ── STEP 2: Merge clips ─────────────���─────────────────────────────────────
   const handleMerge = async () => {
     if (!extractJobId) return
     stopPolling()
@@ -382,18 +379,14 @@ export default function RenderPage() {
     setErrorMsg('')
 
     try {
-      const res  = await fetch('/api/render/merge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extractJobId, json: jsonText }),
-      })
+      const res  = await apiPost('/api/render/merge', { extractJobId, json: jsonText })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Merge failed')
 
       setMergeJobId(data.jobId)
       pollRef.current = setInterval(async () => {
         try {
-          const r = await fetch(`/api/render/merge/status/${data.jobId}`)
+          const r = await apiGet(`/api/render/merge/status/${data.jobId}`)
           const d = await r.json()
           setMergeProg(d.progress ?? 0)
           if (d.status === 'done') {
@@ -436,14 +429,14 @@ export default function RenderPage() {
       fd.append('framerate',   framerate)
       fd.append('bitrate',     bitrate)
 
-      const res  = await fetch('/api/render/finalize', { method: 'POST', body: fd })
+      const res  = await apiCall('/api/render/finalize', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Finalize failed')
 
       setFinalJobId(data.jobId)
       pollRef.current = setInterval(async () => {
         try {
-          const r = await fetch(`/api/render/finalize/status/${data.jobId}`)
+          const r = await apiGet(`/api/render/finalize/status/${data.jobId}`)
           const d = await r.json()
           setFinalProg(d.progress ?? 0)
           if (d.status === 'done') {
@@ -476,6 +469,8 @@ export default function RenderPage() {
     }
   }, [phase])
 
+
+
   // ── Export: Render without voiceover ─────────────────────────────────────
   const handleExport = async () => {
     if (!mergeJobId) return
@@ -485,18 +480,14 @@ export default function RenderPage() {
     setExportError('')
 
     try {
-      const res  = await fetch('/api/render/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mergeJobId, resolution, framerate, bitrate }),
-      })
+      const res  = await apiPost('/api/render/export', { mergeJobId, resolution, framerate, bitrate })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Export failed')
 
       setExportJobId(data.jobId)
       exportPollRef.current = setInterval(async () => {
         try {
-          const r = await fetch(`/api/render/export/status/${data.jobId}`)
+          const r = await apiGet(`/api/render/export/status/${data.jobId}`)
           const d = await r.json()
           setExportProg(d.progress ?? 0)
           if (d.status === 'done') {
@@ -529,7 +520,7 @@ export default function RenderPage() {
   }
 
   const deleteHistory = async (entry: HistoryEntry) => {
-    await fetch(`/api/render/final-job/${entry.jobId}`, { method: 'DELETE' }).catch(() => {})
+      await apiDelete(`/api/render/final-job/${entry.jobId}`).catch(() => {})
     const updated = history.filter(h => h.jobId !== entry.jobId)
     setHistory(updated)
     saveHistory(updated)
@@ -851,7 +842,7 @@ export default function RenderPage() {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════
+        {/* ══════════════════════════════════════════════════���════════════
             PHASE 2: MERGE
         ════════════════════════════════════════════════════════════════ */}
 
@@ -1004,7 +995,7 @@ export default function RenderPage() {
 
         {/* ═══════════════════════════════════════════════════════════════
             PHASE 3: FINALIZE (voiceover + quality)
-        ════════════════════════════════════════════════════════════════ */}
+        ═══����════════════════════════════════════════════════════════════ */}
 
         {(phase === 'merged') && (
           <>

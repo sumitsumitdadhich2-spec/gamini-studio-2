@@ -2,6 +2,7 @@ import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import app from "./app";
 import { handleWsUpload } from "./ws-upload";
+import { setupUploadWS } from "./routes/upload-ws";
 import { logger } from "./lib/logger";
 
 const rawPort = process.env["PORT"];
@@ -24,11 +25,18 @@ const httpServer = createServer(app);
 // message is large, but unset default is 100 MB which can still reject frames)
 const wss = new WebSocketServer({ noServer: true, maxPayload: 0 });
 
+// Setup WebSocket handlers
+setupUploadWS(wss);
+
 // Route WebSocket upgrade requests
 httpServer.on("upgrade", (request, socket, head) => {
   if (request.url === "/api/render/ws-upload") {
     wss.handleUpgrade(request, socket, head, (ws) => {
       handleWsUpload(ws);
+    });
+  } else if (request.url === "/api/upload-ws") {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      // This connection will be handled by setupUploadWS
     });
   } else {
     socket.destroy();
