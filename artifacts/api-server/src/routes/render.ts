@@ -415,7 +415,7 @@ async function processExtract(jobId: string, moviePath: string, editPlan: Record
   }
 }
 
-// ── Process: Merge Clips ─────���────────────────────────────────────────────────
+// ── Process: Merge Clips ─��───���────────────────────────────────────────────────
 async function processMerge(jobId: string, extractJobId: string, boosts: any[], editPlanClips: any[] = []) {
   const job   = mergeJobs[jobId];
   const exJob = extractJobs[extractJobId];
@@ -774,7 +774,7 @@ renderRouter.get("/render/check-file", (req, res) => {
   res.json({ exists: existsSync(filePath) });
 });
 
-// ── Chunked pre-upload ─────────────────────────────────────────────��──────────
+// ── Chunked pre-upload ─────────────────────────────────────��───────��──────────
 // Indexed-chunk approach: each chunk is saved as a numbered file in a staging
 // directory.  Retries safely overwrite the same indexed file (idempotent) instead
 // of double-appending.  Assembly happens once all chunks are present.
@@ -1013,22 +1013,40 @@ renderRouter.get("/render/finalize/status/:jobId", (req, res) => {
 });
 
 renderRouter.get("/render/final-download/:jobId", (req, res) => {
-  const job = finalizeJobs[req.params.jobId];
-  if (!job || job.status !== "done" || !job.outputPath) {
-    res.status(404).json({ error: "Not ready" }); return;
+  const jobId = req.params.jobId;
+  
+  // First check if job exists in memory
+  let outputPath: string | null = null;
+  const job = finalizeJobs[jobId];
+  if (job && job.status === "done" && job.outputPath) {
+    outputPath = job.outputPath;
+  } else {
+    // Fallback: construct expected path if job is not in memory
+    // This handles cases where server restarted but file still exists
+    const expectedPath = path.join(WORK_DIR, `shiva-output-${jobId}.mp4`);
+    if (existsSync(expectedPath)) {
+      outputPath = expectedPath;
+    }
   }
-  if (!existsSync(job.outputPath)) {
-    res.status(404).json({ error: "File no longer available — server may have restarted" }); return;
+  
+  if (!outputPath || !existsSync(outputPath)) {
+    res.status(404).json({ error: "File not found" }); return;
   }
-  // Set CORS headers for file download
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
-  res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Disposition", `attachment; filename="shiva-final-${req.params.jobId}.mp4"`);
-  res.setHeader("Content-Length", statSync(job.outputPath).size);
-  createReadStream(job.outputPath).pipe(res);
+  
+  try {
+    // Set CORS headers for file download
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", `attachment; filename="shiva-final-${jobId}.mp4"`);
+    res.setHeader("Content-Length", statSync(outputPath).size);
+    createReadStream(outputPath).pipe(res);
+  } catch (err) {
+    console.error("[download] Error streaming file:", err);
+    res.status(500).json({ error: "Download failed" });
+  }
 });
 
 renderRouter.delete("/render/final-job/:jobId", async (req, res) => {
@@ -1066,18 +1084,40 @@ renderRouter.get("/render/export/status/:jobId", (req, res) => {
 });
 
 renderRouter.get("/render/export-download/:jobId", (req, res) => {
-  const job = exportJobs[req.params.jobId];
-  if (!job || job.status !== "done" || !job.outputPath) { res.status(404).json({ error: "Not ready" }); return; }
-  if (!existsSync(job.outputPath)) { res.status(404).json({ error: "File no longer available" }); return; }
-  // Set CORS headers for file download
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
-  res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Disposition", `attachment; filename="shiva-export-${req.params.jobId}.mp4"`);
-  res.setHeader("Content-Length", statSync(job.outputPath).size);
-  createReadStream(job.outputPath).pipe(res);
+  const jobId = req.params.jobId;
+  
+  // First check if job exists in memory
+  let outputPath: string | null = null;
+  const job = exportJobs[jobId];
+  if (job && job.status === "done" && job.outputPath) {
+    outputPath = job.outputPath;
+  } else {
+    // Fallback: construct expected path if job is not in memory
+    // This handles cases where server restarted but file still exists
+    const expectedPath = path.join(WORK_DIR, `shiva-export-${jobId}.mp4`);
+    if (existsSync(expectedPath)) {
+      outputPath = expectedPath;
+    }
+  }
+  
+  if (!outputPath || !existsSync(outputPath)) {
+    res.status(404).json({ error: "File not found" }); return;
+  }
+  
+  try {
+    // Set CORS headers for file download
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length, Content-Type");
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", `attachment; filename="shiva-export-${jobId}.mp4"`);
+    res.setHeader("Content-Length", statSync(outputPath).size);
+    createReadStream(outputPath).pipe(res);
+  } catch (err) {
+    console.error("[download] Error streaming file:", err);
+    res.status(500).json({ error: "Download failed" });
+  }
 });
 
 // ════════════════════════════════════════════════════════════════════════════

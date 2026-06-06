@@ -370,7 +370,7 @@ export default function RenderPage() {
     }
   }
 
-  // ── STEP 2: Merge clips ───────────────────────────────────────────────────
+  // ── STEP 2: Merge clips ─────────────���─────────────────────────────────────
   const handleMerge = async () => {
     if (!extractJobId) return
     stopPolling()
@@ -471,29 +471,69 @@ export default function RenderPage() {
 
   // Auto-download when finalize completes
   useEffect(() => {
+    let timer: NodeJS.Timeout | null = null
+    
     if (phase === 'done' && finalJobId) {
-      // Automatically trigger download
-      const downloadLink = document.createElement('a')
-      downloadLink.href = `/api/render/final-download/${finalJobId}`
-      downloadLink.download = `shiva-final-${finalJobId}.mp4`
-      document.body.appendChild(downloadLink)
-      downloadLink.click()
-      document.body.removeChild(downloadLink)
-      console.log('[v0] Auto-downloading finalized video:', finalJobId)
+      // Use a small delay to ensure file is fully written
+      timer = setTimeout(() => {
+        const downloadUrl = `/api/render/final-download/${finalJobId}`
+        console.log('[v0] Auto-downloading finalized video from:', downloadUrl)
+        
+        // Create a temporary anchor element and trigger download
+        const link = document.createElement('a')
+        link.href = downloadUrl
+        link.download = `shiva-final-${finalJobId}.mp4`
+        link.style.display = 'none'
+        
+        // Append to body, click, and remove
+        document.body.appendChild(link)
+        link.click()
+        
+        // Clean up after a short delay
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link)
+          }
+        }, 100)
+      }, 500)
+    }
+    
+    return () => {
+      if (timer) clearTimeout(timer)
     }
   }, [phase, finalJobId])
 
   // Auto-download when export completes
   useEffect(() => {
+    let timer: NodeJS.Timeout | null = null
+    
     if (exportPhase === 'done' && exportJobId) {
-      // Automatically trigger download
-      const downloadLink = document.createElement('a')
-      downloadLink.href = `/api/render/export-download/${exportJobId}`
-      downloadLink.download = `shiva-export-${exportJobId}.mp4`
-      document.body.appendChild(downloadLink)
-      downloadLink.click()
-      document.body.removeChild(downloadLink)
-      console.log('[v0] Auto-downloading exported video:', exportJobId)
+      // Use a small delay to ensure file is fully written
+      timer = setTimeout(() => {
+        const downloadUrl = `/api/render/export-download/${exportJobId}`
+        console.log('[v0] Auto-downloading exported video from:', downloadUrl)
+        
+        // Create a temporary anchor element and trigger download
+        const link = document.createElement('a')
+        link.href = downloadUrl
+        link.download = `shiva-export-${exportJobId}.mp4`
+        link.style.display = 'none'
+        
+        // Append to body, click, and remove
+        document.body.appendChild(link)
+        link.click()
+        
+        // Clean up after a short delay
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link)
+          }
+        }, 100)
+      }, 500)
+    }
+    
+    return () => {
+      if (timer) clearTimeout(timer)
     }
   }, [exportPhase, exportJobId])
 
