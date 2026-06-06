@@ -17,7 +17,6 @@ const LAST_PROJECT_KEY = 'shiva-last-project-id'
 const VOICEMAP_RAW_KEY = 'shiva-voicemap-raw'
 const HISTORY_KEY = 'shiva-voicemap-history'
 const MAX_HISTORY = 30
-const CHUNK_SIZE = 5 * 1024 * 1024
 
 const VOICEMAP_PROMPT_LONG = `You are a professional video editor AI. You have been given:
 1. A REFERENCE VIDEO (the edited sample clip I uploaded in Step 1)
@@ -252,25 +251,64 @@ function dataUrlToFile(dataUrl: string, filename: string): File {
   return new File([new Blob([arr], { type: mime })], filename, { type: mime })
 }
 
-async function uploadChunked(file: File, projectId: string) {
-  const uploadId = `${projectId}-${Date.now()}`
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
-  let filePath = ''
-  for (let i = 0; i < totalChunks; i++) {
-    const chunk = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size))
-    const fd = new FormData()
-    fd.append('action', 'upload-chunk')
-    fd.append('uploadId', uploadId)
-    fd.append('chunkIndex', String(i))
-    fd.append('totalChunks', String(totalChunks))
-    fd.append('originalName', file.name)
-    fd.append('chunk', chunk)
-    const res = await fetch('/api/voicemap', { method: 'POST', body: fd })
-    if (!res.ok) throw new Error(`Chunk upload failed`)
-    const data = await res.json()
-    if (data.filePath) filePath = data.filePath
-  }
-  return filePath
+// WebSocket-based upload — streams the file in 64 KB binary frames with
+// backpressure control. A single persistent connection handles files up to
+// 2 GB without HTTP body limits, proxy timeouts, or multi-request overhead.
+async function uploadFileViaWebSocket(
+  file: File,
+  onProgress: (msg: string) => void
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proto    = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const uploadId = `voicemap-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const url      = `${proto}//${location.host}/api/voicemap/ws-upload`
+
+    let ws: WebSocket
+    try { ws = new WebSocket(url) } catch { reject(new Error('WebSocket not supported')); return }
+
+    let settled = false
+    const done = (_ok: true, path: string) => { if (!settled) { settled = true; resolve(path) } }
+    const fail = (msg: string)             => { if (!settled) { settled = true; reject(new Error(msg)) } }
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'init', uploadId, name: file.name, size: file.size }))
+    }
+
+    ws.onmessage = async (e: MessageEvent) => {
+      const msg = JSON.parse(e.data as string)
+
+      if (msg.type === 'ready') {
+        const SLICE = 64 * 1024 // 64 KB per frame
+        let offset = 0
+        onProgress(`Uploading ${file.name}…`)
+
+        while (offset < file.size) {
+          // Backpressure: wait when the WS send buffer is too full
+          while (ws.bufferedAmount > 8 * 1024 * 1024) {
+            await new Promise(r => setTimeout(r, 30))
+          }
+          if (ws.readyState !== WebSocket.OPEN) { fail('Connection lost during upload'); return }
+          const buf = await file.slice(offset, Math.min(offset + SLICE, file.size)).arrayBuffer()
+          ws.send(buf)
+          offset += buf.byteLength
+          const pct = Math.round(offset / file.size * 100)
+          onProgress(`Uploading ${file.name}… ${pct}%`)
+        }
+        ws.send(JSON.stringify({ type: 'done' }))
+        onProgress('Finalizing upload…')
+
+      } else if (msg.type === 'assembled') {
+        done(true, msg.filePath as string)
+        ws.close()
+      } else if (msg.type === 'error') {
+        fail((msg.error as string) || 'Upload failed')
+        ws.close()
+      }
+    }
+
+    ws.onerror = () => fail('Upload connection failed — check your internet')
+    ws.onclose = (e: CloseEvent) => { if (!settled) fail(e.reason || 'Connection closed unexpectedly') }
+  })
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -425,11 +463,15 @@ export default function VoicemapPage() {
     }
   }, [messages, projectId, sessionId])
 
-  const phaseLabel =
-    generationPhase === 'file-loading' ? 'SHIVA is loading your voice file... please wait'
-    : generationPhase === 'uploading' ? 'Uploading file...'
-    : generationPhase === 'sending' ? 'Sending to SHIVA...'
-    : 'Generating response...'
+  const phaseLabel = (() => {
+    if (generationPhase === 'file-loading') return 'SHIVA is loading your voice file... please wait'
+    if (generationPhase === 'uploading') {
+      const status = (window as any).__shivaVoicemapUploadStatus as string | undefined
+      return status || 'Uploading file via WebSocket...'
+    }
+    if (generationPhase === 'sending') return 'Sending to SHIVA...'
+    return 'Generating response...'
+  })()
 
   // ALL messages use continue-chat so the existing Step 1 session is reused.
   // When a file is attached, we first call attach-file (waits for Playwright
@@ -448,26 +490,25 @@ export default function VoicemapPage() {
     setIsLoading(true)
 
     try {
-      // ── Step 1: if a file is attached, upload it to the server then attach
-      //    it to the Playwright session and wait for AI Studio to confirm load.
+      // ── Step 1: if a file is attached, upload it to the server via WebSocket
+      //    (works for files up to 2 GB — no HTTP body limits, no proxy timeouts),
+      //    then attach it to the Playwright session and wait for AI Studio to confirm.
       if (chatFile) {
         setGenerationPhase('uploading')
 
-        let filePath = ''
-        if (chatFile.size > CHUNK_SIZE) {
-          filePath = await uploadChunked(chatFile, projectId)
-        }
+        const filePath = await uploadFileViaWebSocket(chatFile, (msg) => {
+          // surface progress in the phase label
+          setGenerationPhase('uploading')
+          // store upload status for display in the loading indicator
+          ;(window as any).__shivaVoicemapUploadStatus = msg
+        })
 
         setGenerationPhase('file-loading')
 
         const attachFd = new FormData()
         attachFd.append('action', 'attach-file')
         attachFd.append('projectId', projectId)
-        if (filePath) {
-          attachFd.append('filePath', filePath)
-        } else {
-          attachFd.append('video', chatFile)
-        }
+        attachFd.append('filePath', filePath)
 
         const attachRes = await fetch('/api/voicemap', { method: 'POST', body: attachFd })
         if (!attachRes.ok) {

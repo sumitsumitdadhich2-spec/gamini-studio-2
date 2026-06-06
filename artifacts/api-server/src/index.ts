@@ -25,8 +25,14 @@ const httpServer = createServer(app);
 const wss = new WebSocketServer({ noServer: true, maxPayload: 0 });
 
 // Route WebSocket upgrade requests
+// Both /api/render/ws-upload (render page) and /api/voicemap/ws-upload (voicemap page)
+// use the same handleWsUpload handler — a single binary-streaming WebSocket uploader
+// that works without HTTP body limits and tolerates multi-gigabyte files.
 httpServer.on("upgrade", (request, socket, head) => {
-  if (request.url === "/api/render/ws-upload") {
+  if (
+    request.url === "/api/render/ws-upload" ||
+    request.url === "/api/voicemap/ws-upload"
+  ) {
     wss.handleUpgrade(request, socket, head, (ws) => {
       handleWsUpload(ws);
     });
