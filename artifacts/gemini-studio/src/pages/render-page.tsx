@@ -115,6 +115,62 @@ function fmtDur(secs: number): string {
 }
 
 // ── WebSocket upload (no chunks, no proxy timeouts) ──────────────────────────
+// Robust video download.
+//
+// IMPORTANT: We must NOT do `await res.blob()` here. blob() buffers the ENTIRE
+// file into browser RAM before saving. That works for small SD clips but for a
+// 4K render (multiple GB) it silently exhausts memory — the spinner keeps
+// turning, the request "succeeds", yet nothing ever lands on disk. That was the
+// real download-fail bug on large files.
+//
+// Instead we:
+//   1. Send a tiny Range request (bytes=0-0) just to VERIFY the file is ready
+//      and authorized — this catches 401/403/404 gracefully without buffering.
+//   2. Trigger a normal anchor download pointing straight at the URL. Because
+//      the server sends `Content-Disposition: attachment`, the browser streams
+//      the bytes directly to disk (no RAM blow-up) and does NOT navigate away.
+async function downloadVideoFile(url: string, filename: string): Promise<void> {
+  // Step 1 — lightweight readiness/auth probe (downloads only 1 byte)
+  let probe: Response
+  try {
+    probe = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Range: 'bytes=0-0' },
+    })
+  } catch {
+    throw new Error('Could not reach the server. Check your internet connection and try again.')
+  }
+
+  // 200 (no range support) and 206 (partial content) both mean the file is OK.
+  if (!probe.ok && probe.status !== 206) {
+    let msg = `Download failed (HTTP ${probe.status})`
+    if (probe.status === 401 || probe.status === 403) {
+      msg = 'Download unauthorized — please refresh the page, then retry.'
+    } else if (probe.status === 404) {
+      msg = 'File is no longer available on the server (it may have expired or the server restarted). Please re-render.'
+    } else {
+      try {
+        const data = await probe.clone().json()
+        if (data?.error) msg = data.error
+      } catch { /* non-JSON error body, keep default message */ }
+    }
+    throw new Error(msg)
+  }
+  // Release the probe body immediately — we don't need its bytes.
+  try { await probe.body?.cancel() } catch { /* ignore */ }
+
+  // Step 2 — stream-to-disk download via a hidden anchor (no RAM buffering).
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+}
+
 async function uploadFileViaWebSocket(
   file: File,
   onProgress: (msg: string) => void
@@ -268,6 +324,22 @@ export default function RenderPage() {
   const exportPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const stopExportPoll = useCallback(() => {
     if (exportPollRef.current) { clearInterval(exportPollRef.current); exportPollRef.current = null }
+  }, [])
+
+  // ── Download state (shared by all "Download" buttons) ─────────────────────
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [downloadError,  setDownloadError]  = useState('')
+
+  const handleDownload = useCallback(async (url: string, filename: string, id: string) => {
+    setDownloadError('')
+    setDownloadingId(id)
+    try {
+      await downloadVideoFile(url, filename)
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'Download failed')
+    } finally {
+      setDownloadingId(null)
+    }
   }, [])
 
   // ── UI state ─────────────────────────────────────────────────────────────
@@ -588,6 +660,7 @@ export default function RenderPage() {
         {/* ── Header row ──────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
           <div>
+            <span className="inline-block mb-2 px-3 py-1 rounded-full bg-yellow-400/20 text-yellow-400 text-xs font-bold tracking-widest border border-yellow-400/30">DEMO</span>
             <h2 className="text-2xl font-black text-foreground flex items-center gap-2">
               <Film className="w-6 h-6 text-primary" />
               Final Render
@@ -642,12 +715,14 @@ export default function RenderPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">{new Date(entry.timestamp).toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <a href={`/api/render/final-download/${entry.jobId}`} download={`shiva-final-${entry.jobId}.mp4`}>
-                      <Button variant="outline" size="sm"
-                        className="h-7 px-2.5 text-xs border-green-500/40 text-green-400 hover:bg-green-500/10">
-                        <Download className="w-3 h-3 mr-1" /> Download
-                      </Button>
-                    </a>
+                    <Button variant="outline" size="sm"
+                      disabled={downloadingId === `hist-${entry.jobId}`}
+                      onClick={() => handleDownload(`/api/render/final-download/${entry.jobId}`, `shiva-final-${entry.jobId}.mp4`, `hist-${entry.jobId}`)}
+                      className="h-7 px-2.5 text-xs border-green-500/40 text-green-400 hover:bg-green-500/10 disabled:opacity-60">
+                      {downloadingId === `hist-${entry.jobId}`
+                        ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> …</>
+                        : <><Download className="w-3 h-3 mr-1" /> Download</>}
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => deleteHistory(entry)}
                       className="h-7 px-2 text-xs border-destructive/40 text-destructive hover:bg-destructive/10">
                       <Trash2 className="w-3 h-3" />
@@ -659,9 +734,9 @@ export default function RenderPage() {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════
+        {/* ═══════════════════���═══════════════════════════════════════════
             SETUP SECTION (always visible at top)
-        ════════════════════════════════════════════════════════════════ */}
+        ═════════════════════���══════════════════════════════════════════ */}
 
         {/* ── JSON Plan ───────────────────────────────────────────────── */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -851,7 +926,7 @@ export default function RenderPage() {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════
+        {/* ══════════════════════════════════════════════════���════════════
             PHASE 2: MERGE
         ════════════════════════════════════════════════════════════════ */}
 
@@ -973,16 +1048,25 @@ export default function RenderPage() {
                     Render complete!
                   </div>
                   <div className="flex gap-2">
-                    <a href={`/api/render/export-download/${exportJobId}`} download
-                      className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition-colors">
-                      <Download className="w-4 h-4" />
-                      Download Video
-                    </a>
+                    <button
+                      type="button"
+                      disabled={downloadingId === `export-${exportJobId}`}
+                      onClick={() => handleDownload(`/api/render/export-download/${exportJobId}`, `shiva-export-${exportJobId}.mp4`, `export-${exportJobId}`)}
+                      className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-60 text-white text-sm font-bold transition-colors">
+                      {downloadingId === `export-${exportJobId}`
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Downloading…</>
+                        : <><Download className="w-4 h-4" /> Download Video</>}
+                    </button>
                     <Button variant="outline" size="sm" onClick={() => { setExportPhase('idle'); setExportJobId(null) }}
                       className="h-10 px-3 text-xs border-border text-muted-foreground hover:text-foreground">
                       <RefreshCw className="w-3 h-3 mr-1" />Re-render
                     </Button>
                   </div>
+                  {downloadError && (
+                    <p className="text-xs text-red-400 flex items-start gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {downloadError}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1131,16 +1215,24 @@ export default function RenderPage() {
               <p className="text-base font-bold text-foreground">Render Complete!</p>
             </div>
             <div className="p-4 flex gap-3">
-              <a href={`/api/render/final-download/${finalJobId}`} download className="flex-1">
-                <Button className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-base">
-                  <Download className="w-5 h-5" /> Download Final Video
-                </Button>
-              </a>
+              <Button
+                disabled={downloadingId === `final-${finalJobId}`}
+                onClick={() => handleDownload(`/api/render/final-download/${finalJobId}`, `shiva-final-${finalJobId}.mp4`, `final-${finalJobId}`)}
+                className="flex-1 w-full gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-bold h-12 text-base">
+                {downloadingId === `final-${finalJobId}`
+                  ? <><Loader2 className="w-5 h-5 animate-spin" /> Downloading…</>
+                  : <><Download className="w-5 h-5" /> Download Final Video</>}
+              </Button>
               <Button variant="outline" onClick={handleReset}
                 className="border-border text-muted-foreground hover:text-foreground gap-2 h-12">
                 <RefreshCw className="w-4 h-4" /> New Render
               </Button>
             </div>
+            {downloadError && (
+              <p className="px-4 pb-3 -mt-1 text-xs text-red-400 flex items-start gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {downloadError}
+              </p>
+            )}
           </div>
         )}
 
