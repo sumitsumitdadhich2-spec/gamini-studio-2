@@ -115,43 +115,60 @@ function fmtDur(secs: number): string {
 }
 
 // ── WebSocket upload (no chunks, no proxy timeouts) ──────────────────────────
-// Robust video download — instead of a raw `<a href download>` (which navigates
-// the browser away to the API endpoint and CRASHES the SPA when the response is
-// 401/403/404), we fetch the file with credentials, stream it into a Blob, and
-// trigger a client-side download from an object URL. Errors are caught and
-// surfaced to the caller instead of breaking the page.
+// Robust video download.
+//
+// IMPORTANT: We must NOT do `await res.blob()` here. blob() buffers the ENTIRE
+// file into browser RAM before saving. That works for small SD clips but for a
+// 4K render (multiple GB) it silently exhausts memory — the spinner keeps
+// turning, the request "succeeds", yet nothing ever lands on disk. That was the
+// real download-fail bug on large files.
+//
+// Instead we:
+//   1. Send a tiny Range request (bytes=0-0) just to VERIFY the file is ready
+//      and authorized — this catches 401/403/404 gracefully without buffering.
+//   2. Trigger a normal anchor download pointing straight at the URL. Because
+//      the server sends `Content-Disposition: attachment`, the browser streams
+//      the bytes directly to disk (no RAM blow-up) and does NOT navigate away.
 async function downloadVideoFile(url: string, filename: string): Promise<void> {
-  const res = await fetch(url, {
-    method: 'GET',
-    credentials: 'include',          // send cookies (fixes Vercel auth / deployment-protection "unauthorized")
-    cache: 'no-store',
-  })
+  // Step 1 — lightweight readiness/auth probe (downloads only 1 byte)
+  let probe: Response
+  try {
+    probe = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Range: 'bytes=0-0' },
+    })
+  } catch {
+    throw new Error('Could not reach the server. Check your internet connection and try again.')
+  }
 
-  if (!res.ok) {
-    let msg = `Download failed (HTTP ${res.status})`
-    if (res.status === 401 || res.status === 403) {
-      msg = 'Download unauthorized — please refresh the page and sign in again, then retry.'
-    } else if (res.status === 404) {
+  // 200 (no range support) and 206 (partial content) both mean the file is OK.
+  if (!probe.ok && probe.status !== 206) {
+    let msg = `Download failed (HTTP ${probe.status})`
+    if (probe.status === 401 || probe.status === 403) {
+      msg = 'Download unauthorized — please refresh the page, then retry.'
+    } else if (probe.status === 404) {
       msg = 'File is no longer available on the server (it may have expired or the server restarted). Please re-render.'
     } else {
       try {
-        const data = await res.clone().json()
+        const data = await probe.clone().json()
         if (data?.error) msg = data.error
       } catch { /* non-JSON error body, keep default message */ }
     }
     throw new Error(msg)
   }
+  // Release the probe body immediately — we don't need its bytes.
+  try { await probe.body?.cancel() } catch { /* ignore */ }
 
-  const blob = await res.blob()
-  const objectUrl = URL.createObjectURL(blob)
+  // Step 2 — stream-to-disk download via a hidden anchor (no RAM buffering).
   const a = document.createElement('a')
-  a.href = objectUrl
+  a.href = url
   a.download = filename
+  a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
   a.remove()
-  // Revoke after a tick so the download has a chance to start
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 4000)
 }
 
 async function uploadFileViaWebSocket(
@@ -718,7 +735,7 @@ export default function RenderPage() {
 
         {/* ═══════════════════════════════════════════════════════════════
             SETUP SECTION (always visible at top)
-        ════════════════════════════════════════════════════════════════ */}
+        ═════════════════════���══════════════════════════════════════════ */}
 
         {/* ── JSON Plan ───────────────────────────────────────────────── */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">

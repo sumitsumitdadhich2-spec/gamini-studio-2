@@ -9,24 +9,48 @@ import { logger } from "../lib/logger";
 
 // All shiva temp files go here — workspace has 256 GB vs /tmp's 32 GB quota.
 const WORK_DIR = path.join(process.cwd(), "uploads", "tmp");
-// Ensure the directory exists at startup and clean up files older than 12 hours.
+const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+
+// Files/dirs that must NEVER be auto-deleted (session + job metadata).
+const CLEANUP_KEEP = new Set([
+  "tmp",                              // the WORK_DIR itself (we clean its contents, not the dir)
+  "shiva-jobs.json",                  // persisted render jobs
+  "shiva-step1-cookies-path.txt",     // login session pointer
+]);
+
+// Auto-cleanup: every 4 hours, delete anything older than 4 hours from both the
+// temp work dir and the uploads dir. This guarantees storage can never slowly
+// fill up over days of use — old renders, extracts and uploads are purged on a
+// rolling 4-hour window while keeping session/job metadata intact.
+const CLEANUP_MAX_AGE = 4 * 60 * 60 * 1000;   // 4 hours
+const CLEANUP_INTERVAL = 4 * 60 * 60 * 1000;  // run every 4 hours
+
+async function runStorageCleanup() {
+  const now = Date.now();
+  for (const dir of [WORK_DIR, UPLOADS_DIR]) {
+    try {
+      for (const entry of await fs.readdir(dir)) {
+        if (CLEANUP_KEEP.has(entry)) continue;
+        try {
+          const full = path.join(dir, entry);
+          const stat = await fs.stat(full);
+          if (now - stat.mtimeMs > CLEANUP_MAX_AGE) {
+            await fs.rm(full, { recursive: true, force: true });
+            logger.info(`[cleanup] removed old file: ${full}`);
+          }
+        } catch { /* ignore individual entry errors */ }
+      }
+    } catch { /* dir may not exist yet */ }
+  }
+}
+
+// Ensure the directory exists at startup, run an initial cleanup, then schedule
+// the recurring 4-hour cleanup.
 (async () => {
   await fs.mkdir(WORK_DIR, { recursive: true }).catch(() => {});
-  try {
-    const MAX_AGE = 12 * 60 * 60 * 1000;
-    const now = Date.now();
-    for (const entry of await fs.readdir(WORK_DIR)) {
-      try {
-        const full = path.join(WORK_DIR, entry);
-        const stat = await fs.stat(full);
-        if (now - stat.mtimeMs > MAX_AGE) {
-          await fs.rm(full, { recursive: true, force: true });
-          logger.info(`[cleanup] removed old temp: ${entry}`);
-        }
-      } catch { /* ignore */ }
-    }
-  } catch { /* ignore */ }
+  await runStorageCleanup();
 })();
+setInterval(() => { void runStorageCleanup(); }, CLEANUP_INTERVAL).unref();
 
 function detectFfmpeg(): string {
   // Try multiple paths for ffmpeg-static binary
@@ -128,6 +152,46 @@ function runFF(args: string[]): Promise<void> {
 
 async function safeDelete(p: string) {
   try { if (existsSync(p)) await fs.unlink(p); } catch { /* ignore */ }
+}
+
+// Stream a file as a download with HTTP Range support.
+//
+// Range support is what makes large (4K, multi-GB) downloads reliable: the
+// browser can request the file in pieces and stream straight to disk, and the
+// client can send a tiny `bytes=0-0` probe to check readiness without pulling
+// the whole file. Without Range, the browser may buffer everything in memory
+// and large downloads silently fail.
+function streamDownload(req: import("express").Request, res: import("express").Response, filePath: string, downloadName: string) {
+  const stat = statSync(filePath);
+  const total = stat.size;
+  const range = req.headers.range;
+
+  res.setHeader("Content-Type", "video/mp4");
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+
+  if (range) {
+    const match = /bytes=(\d*)-(\d*)/.exec(range);
+    const start = match && match[1] ? parseInt(match[1], 10) : 0;
+    const end   = match && match[2] ? parseInt(match[2], 10) : total - 1;
+    if (start >= total || end >= total || start > end) {
+      res.status(416).setHeader("Content-Range", `bytes */${total}`);
+      res.end();
+      return;
+    }
+    res.status(206);
+    res.setHeader("Content-Range", `bytes ${start}-${end}/${total}`);
+    res.setHeader("Content-Length", end - start + 1);
+    const stream = createReadStream(filePath, { start, end });
+    stream.pipe(res);
+    stream.on("error", () => { if (!res.headersSent) res.status(500).end(); });
+    return;
+  }
+
+  res.setHeader("Content-Length", total);
+  const stream = createReadStream(filePath);
+  stream.pipe(res);
+  stream.on("error", () => { if (!res.headersSent) res.status(500).json({ error: "Stream failed" }); });
 }
 
 function probeVideoDuration(filePath: string): number {
@@ -774,7 +838,7 @@ renderRouter.get("/render/check-file", (req, res) => {
   res.json({ exists: existsSync(filePath) });
 });
 
-// ── Chunked pre-upload ────────────────────────────────────────────────────────
+// ── Chunked pre-upload ─────────────────────────────────────────────��──────────
 // Indexed-chunk approach: each chunk is saved as a numbered file in a staging
 // directory.  Retries safely overwrite the same indexed file (idempotent) instead
 // of double-appending.  Assembly happens once all chunks are present.
@@ -1020,9 +1084,7 @@ renderRouter.get("/render/final-download/:jobId", (req, res) => {
   if (!existsSync(job.outputPath)) {
     res.status(404).json({ error: "File no longer available — server may have restarted" }); return;
   }
-  res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Disposition", `attachment; filename="shiva-final-${req.params.jobId}.mp4"`);
-  createReadStream(job.outputPath).pipe(res);
+  streamDownload(req, res, job.outputPath, `shiva-final-${req.params.jobId}.mp4`);
 });
 
 renderRouter.delete("/render/final-job/:jobId", async (req, res) => {
@@ -1063,9 +1125,7 @@ renderRouter.get("/render/export-download/:jobId", (req, res) => {
   const job = exportJobs[req.params.jobId];
   if (!job || job.status !== "done" || !job.outputPath) { res.status(404).json({ error: "Not ready" }); return; }
   if (!existsSync(job.outputPath)) { res.status(404).json({ error: "File no longer available" }); return; }
-  res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Disposition", `attachment; filename="shiva-export-${req.params.jobId}.mp4"`);
-  createReadStream(job.outputPath).pipe(res);
+  streamDownload(req, res, job.outputPath, `shiva-export-${req.params.jobId}.mp4`);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1137,11 +1197,7 @@ renderRouter.get("/render/download/:jobId", async (req, res) => {
   const job = jobs[req.params.jobId];
   if (!job || job.status !== "done" || !job.outputPath) { res.status(404).json({ error: "Not ready" }); return; }
   if (!existsSync(job.outputPath)) { res.status(404).json({ error: "Output file no longer available" }); return; }
-  res.setHeader("Content-Type", "video/mp4");
-  res.setHeader("Content-Disposition", `attachment; filename="shiva-render-${req.params.jobId}.mp4"`);
-  const stream = createReadStream(job.outputPath);
-  stream.pipe(res);
-  stream.on("error", () => { if (!res.headersSent) res.status(500).json({ error: "Stream failed" }); });
+  streamDownload(req, res, job.outputPath, `shiva-render-${req.params.jobId}.mp4`);
 });
 
 renderRouter.delete("/render/job/:jobId", async (req, res) => {
