@@ -660,6 +660,7 @@ export default function RenderPage() {
         {/* ── Header row ──────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
           <div>
+            <span className="inline-block mb-2 px-3 py-1 rounded-full bg-yellow-400/20 text-yellow-400 text-xs font-bold tracking-widest border border-yellow-400/30">DEMO</span>
             <h2 className="text-2xl font-black text-foreground flex items-center gap-2">
               <Film className="w-6 h-6 text-primary" />
               Final Render
@@ -733,7 +734,7 @@ export default function RenderPage() {
           </div>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════════
+        {/* ═══════════════════���═══════════════════════════════════════════
             SETUP SECTION (always visible at top)
         ═════════════════════���══════════════════════════════════════════ */}
 
